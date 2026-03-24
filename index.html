@@ -554,6 +554,7 @@
 
     /* 预约确认弹窗 */
     .confirm-modal {
+      display: none !important;
       position: fixed;
       top: 50%;
       left: 50%;
@@ -565,6 +566,10 @@
       max-width: 320px;
       z-index: 200;
       box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+
+    .confirm-modal.show {
+      display: block !important;
     }
 
     .confirm-modal h3 {
