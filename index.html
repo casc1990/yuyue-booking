@@ -534,6 +534,140 @@
     .about-card .feature-item .icon {
       font-size: 20px;
     }
+
+    /* 手机号错误状态 */
+    .form-item input.error {
+      border-color: #ff4d4f !important;
+      background: #fff1f0;
+    }
+
+    .form-item .error-msg {
+      color: #ff4d4f;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .form-item .error-msg.show {
+      display: block;
+    }
+
+    /* 预约确认弹窗 */
+    .confirm-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 320px;
+      z-index: 200;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+
+    .confirm-modal h3 {
+      font-size: 17px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .confirm-info {
+      background: #f5f6fa;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .confirm-info .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+
+    .confirm-info .row .label {
+      color: #999;
+    }
+
+    .confirm-info .row .value {
+      color: #333;
+      font-weight: 500;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .confirm-actions .btn {
+      flex: 1;
+    }
+
+    .btn-cancel-modal {
+      background: #f5f6fa;
+      color: #666;
+    }
+
+    /* 处理进度遮罩 */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s;
+    }
+
+    .loading-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: white;
+      margin-top: 16px;
+      font-size: 15px;
+    }
+
+    /* 备注输入框 */
+    .form-item textarea {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 15px;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      outline: none;
+      resize: none;
+      font-family: inherit;
+      min-height: 80px;
+    }
+
+    .form-item textarea:focus {
+      border-color: #667eea;
+    }
   </style>
 </head>
 <body>
@@ -573,6 +707,11 @@
         <div class="form-item">
           <label>手机号</label>
           <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11">
+          <div class="error-msg" id="phoneError">请输入正确的手机号</div>
+        </div>
+        <div class="form-item">
+          <label>备注（选填）</label>
+          <textarea id="remarkInput" placeholder="如有特殊需求请在此说明" maxlength="200"></textarea>
         </div>
         <button class="btn btn-primary" id="bookBtn" disabled>确认预约</button>
       </div>
@@ -631,6 +770,23 @@
     </div>
     <div class="time-list" id="changeTimeList"></div>
     <button class="btn btn-primary" id="confirmChangeBtn" disabled style="margin-top:16px;">确认改约</button>
+  </div>
+
+  <!-- 预约确认弹窗 -->
+  <div class="modal-overlay" id="confirmOverlay"></div>
+  <div class="confirm-modal" id="confirmModal">
+    <h3>📋 确认预约信息</h3>
+    <div class="confirm-info" id="confirmInfo"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-cancel-modal" id="confirmCancelBtn">取消</button>
+      <button class="btn btn-primary" id="confirmSubmitBtn">确认提交</button>
+    </div>
+  </div>
+
+  <!-- 处理进度遮罩 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">正在处理...</div>
   </div>
 
   <script>
@@ -835,6 +991,14 @@
       // 预约按钮
       document.getElementById('bookBtn').addEventListener('click', handleBook);
 
+      // 手机号输入实时校验
+      document.getElementById('phoneInput').addEventListener('input', updateBookBtn);
+
+      // 确认弹窗
+      document.getElementById('confirmCancelBtn').addEventListener('click', hideConfirmModal);
+      document.getElementById('confirmSubmitBtn').addEventListener('click', confirmSubmit);
+      document.getElementById('confirmOverlay').addEventListener('click', hideConfirmModal);
+
       // 查询按钮
       document.getElementById('searchBtn').addEventListener('click', handleSearch);
       document.getElementById('searchPhone').addEventListener('keypress', e => {
@@ -851,15 +1015,66 @@
     function updateBookBtn() {
       const name = document.getElementById('nameInput').value.trim();
       const phone = document.getElementById('phoneInput').value.trim();
+      const phoneInput = document.getElementById('phoneInput');
+      const phoneError = document.getElementById('phoneError');
       const btn = document.getElementById('bookBtn');
       
+      const isPhoneValid = phone.length === 0 || validatePhone(phone);
       const isValid = name && phone && selectedTime && selectedDate && validatePhone(phone);
+      
       btn.disabled = !isValid;
+      
+      // 手机号错误样式
+      if (phone && !validatePhone(phone)) {
+        phoneInput.classList.add('error');
+        phoneError.classList.add('show');
+      } else {
+        phoneInput.classList.remove('error');
+        phoneError.classList.remove('show');
+      }
     }
 
     // ===== 手机号验证 =====
     function validatePhone(phone) {
       return /^1[3-9]\d{9}$/.test(phone);
+    }
+
+    // ===== 显示确认弹窗 =====
+    function showConfirmModal() {
+      const name = document.getElementById('nameInput').value.trim();
+      const phone = document.getElementById('phoneInput').value.trim();
+      const remark = document.getElementById('remarkInput').value.trim();
+      const slot = CONFIG.timeSlots.find(s => s.start === selectedTime);
+      const dateInfo = formatDateCN(selectedDate);
+      
+      const infoHtml = `
+        <div class="row"><span class="label">日期</span><span class="value">${dateInfo.month}${dateInfo.day} ${dateInfo.week}</span></div>
+        <div class="row"><span class="label">时段</span><span class="value">${slot ? slot.start + ' - ' + slot.end : selectedTime}</span></div>
+        <div class="row"><span class="label">姓名</span><span class="value">${name}</span></div>
+        <div class="row"><span class="label">电话</span><span class="value">${phone}</span></div>
+        ${remark ? `<div class="row"><span class="label">备注</span><span class="value">${remark}</span></div>` : ''}
+      `;
+      
+      document.getElementById('confirmInfo').innerHTML = infoHtml;
+      document.getElementById('confirmOverlay').classList.add('show');
+      document.getElementById('confirmModal').classList.add('show');
+    }
+
+    // ===== 隐藏确认弹窗 =====
+    function hideConfirmModal() {
+      document.getElementById('confirmOverlay').classList.remove('show');
+      document.getElementById('confirmModal').classList.remove('show');
+    }
+
+    // ===== 显示进度遮罩 =====
+    function showLoading(text) {
+      document.getElementById('loadingText').textContent = text || '正在处理...';
+      document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    // ===== 隐藏进度遮罩 =====
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('show');
     }
 
     // ===== 处理预约 =====
@@ -872,22 +1087,43 @@
         return;
       }
 
+      // 显示确认弹窗
+      showConfirmModal();
+    }
+
+    // ===== 确认提交 =====
+    async function confirmSubmit() {
+      hideConfirmModal();
+      
+      const name = document.getElementById('nameInput').value.trim();
+      const phone = document.getElementById('phoneInput').value.trim();
+      const remark = document.getElementById('remarkInput').value.trim();
+
+      showLoading('正在提交预约...');
+
       // 检查是否重复预约同日时段（从飞书查询）
       const result = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]=DATE("${selectedDate}"), CurrentValue.[预约时段]="${selectedTime}")`);
       
       if (result.data && result.data.items && result.data.items.length > 0) {
+        hideLoading();
         showToast('您已预约过此时段');
         return;
       }
 
       // 写入飞书（日期转时间戳）
+      showLoading('正在写入数据...');
       const dateTs = new Date(selectedDate + 'T00:00:00').getTime();
-      const writeResult = await feishuCreateRecord({
+      const fields = {
         '姓名': name,
         '电话': phone,
         '预约日期': dateTs,
         '预约时段': selectedTime
-      });
+      };
+      if (remark) fields['备注'] = remark;
+      
+      const writeResult = await feishuCreateRecord(fields);
+
+      hideLoading();
 
       if (writeResult.code !== 0) {
         showToast('预约失败，请重试');
@@ -897,6 +1133,7 @@
       // 清空表单
       document.getElementById('nameInput').value = '';
       document.getElementById('phoneInput').value = '';
+      document.getElementById('remarkInput').value = '';
       selectedTime = null;
       renderTimeSlots();
 
