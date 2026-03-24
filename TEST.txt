@@ -1,0 +1,5 @@
+# 理疗馆预约系统 - 测试文件
+
+这是一个测试文件，用于验证 GitHub 推送流程。
+
+部署地址：https://chipper-meerkat-49d7fb.netlify.app/
