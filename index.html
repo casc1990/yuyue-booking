@@ -636,63 +636,38 @@
   <script>
     // ===== 飞书配置 =====
     const FEISHU = {
-      appId: 'cli_a948c8e789b81bef',
-      appSecret: 'Y9x56ZRTJYhyEPeHFhXFJb5yaUVWKZh2',
       appToken: 'Tt7WbdPzDahXLtsHRFAcuJbEnAh',
-      tableId: 'tblylpjywtF5QFST',
-      tokenCache: null,
-      tokenExpiry: 0
+      tableId: 'tblylpjywtF5QFST'
     };
 
-    // ===== 飞书 API =====
-    async function getFeishuToken() {
-      if (FEISHU.tokenCache && Date.now() < FEISHU.tokenExpiry) {
-        return FEISHU.tokenCache;
-      }
-      const resp = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+    // ===== 飞书 API (通过Netlify代理) =====
+    const PROXY_BASE = '/.netlify/functions/feishu-proxy';
+
+    async function feishuProxy(action, path, method, body) {
+      const resp = await fetch(PROXY_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ app_id: FEISHU.appId, app_secret: FEISHU.appSecret })
+        body: JSON.stringify({ action, path, method, body })
       });
-      const data = await resp.json();
-      if (data.tenant_access_token) {
-        FEISHU.tokenCache = data.tenant_access_token;
-        FEISHU.tokenExpiry = Date.now() + 7000000;
-        return data.tenant_access_token;
-      }
-      throw new Error('获取飞书Token失败');
+      return await resp.json();
     }
 
     async function feishuCreateRecord(fields) {
-      const token = await getFeishuToken();
-      const resp = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ fields })
-      });
-      return await resp.json();
+      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`;
+      return await feishuProxy('create', path, 'POST', { fields });
     }
 
     async function feishuQueryRecords(filterFormula) {
-      const token = await getFeishuToken();
-      const url = new URL(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`);
+      let path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`;
       if (filterFormula) {
-        url.searchParams.set('filter', filterFormula);
+        path += `?filter=${encodeURIComponent(filterFormula)}`;
       }
-      const resp = await fetch(url.toString(), {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      return await resp.json();
+      return await feishuProxy('query', path, 'GET');
     }
 
     async function feishuUpdateRecord(recordId, fields) {
-      const token = await getFeishuToken();
-      const resp = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${recordId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ fields })
-      });
-      return await resp.json();
+      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${recordId}`;
+      return await feishuProxy('update', path, 'PUT', { fields });
     }
 
     // ===== 配置 =====
@@ -1010,11 +985,8 @@
 
     // ===== 取消预约 =====
     async function cancelBooking(id) {
-      const token = await getFeishuToken();
-      await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${id}`;
+      await feishuProxy('delete', path, 'DELETE');
       showToast('已取消预约');
       handleSearch(); // 刷新列表
     }

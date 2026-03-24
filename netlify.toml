@@ -1,0 +1,8 @@
+[build]
+  functions = "api"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# 公开的环境变量（在函数中可访问，但不在客户端暴露）
+# 敏感信息通过 Netlify Dashboard 设置
