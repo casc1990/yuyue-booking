@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>理疗馆预约</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f6fa;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* 头部 */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px 20px 60px;
+      border-radius: 0 0 24px 24px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    /* 导航 */
+    .nav-tabs {
+      display: flex;
+      background: white;
+      padding: 0 16px;
+      margin: -40px 16px 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    .nav-tab {
+      flex: 1;
+      padding: 14px 0;
+      text-align: center;
+      font-size: 15px;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .nav-tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      font-weight: 600;
+    }
+
+    /* 内容区 */
+    .content {
+      padding: 0 16px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* 日期选择 */
+    .date-section {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .date-section h3 {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 12px;
+    }
+
+    .date-list {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .date-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .date-item {
+      flex-shrink: 0;
+      width: 60px;
+      padding: 10px 4px;
+      text-align: center;
+      border-radius: 10px;
+      background: #f5f6fa;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .date-item:hover {
+      background: #eee;
+    }
+
+    .date-item.selected {
+      background: #667eea;
+      color: white;
+    }
+
+    .date-item .week {
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 4px;
+    }
+
+    .date-item.selected .week {
+      color: rgba(255,255,255,0.8);
+    }
+
+    .date-item .day {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .date-item .month {
+      font-size: 10px;
+      color: #999;
+    }
+
+    .date-item.selected .month {
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* 时段列表 */
+    .time-section {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .time-section h3 {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 12px;
+    }
+
+    .time-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .time-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: #f5f6fa;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .time-item:hover:not(.disabled) {
+      background: #eee;
+    }
+
+    .time-item.selected {
+      background: #667eea;
+      color: white;
+    }
+
+    .time-item.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .time-item .time {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .time-item .remain {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: white;
+      color: #667eea;
+    }
+
+    .time-item.selected .remain {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    .time-item.disabled .remain {
+      background: #ddd;
+      color: #999;
+    }
+
+    .time-item .full-tag {
+      font-size: 12px;
+      color: #ff4d4f;
+    }
+
+    .time-item.selected .full-tag {
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* 表单 */
+    .form-section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .form-item {
+      margin-bottom: 16px;
+    }
+
+    .form-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-item label {
+      display: block;
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .form-item input {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 15px;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-item input:focus {
+      border-color: #667eea;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #f5f6fa;
+      color: #666;
+      margin-top: 10px;
+    }
+
+    /* 预约卡片 */
+    .booking-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .booking-card .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .booking-card .card-date {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .booking-card .card-status {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .booking-card .card-status.confirmed {
+      background: #e6f7e6;
+      color: #52c41a;
+    }
+
+    .booking-card .card-status.cancelled {
+      background: #fff1f0;
+      color: #ff4d4f;
+    }
+
+    .booking-card .card-info {
+      font-size: 13px;
+      color: #999;
+      margin-bottom: 12px;
+    }
+
+    .booking-card .card-info span {
+      margin-right: 16px;
+    }
+
+    .booking-card .card-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .booking-card .card-actions button {
+      flex: 1;
+      padding: 10px;
+      font-size: 13px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn-cancel {
+      background: #fff1f0;
+      color: #ff4d4f;
+    }
+
+    .btn-change {
+      background: #f0f5ff;
+      color: #667eea;
+    }
+
+    /* 提示 */
+    .tips {
+      background: #f0f5ff;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #667eea;
+      line-height: 1.6;
+    }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.75);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 1000;
+      animation: fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    /* 遮罩 - 默认隐藏 */
+    .modal-overlay {
+      display: none !important;
+    }
+
+    .modal-overlay.show {
+      display: block !important;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+
+    /* 改约弹窗 - 默认隐藏 */
+    .modal {
+      display: none !important;
+    }
+
+    .modal.show {
+      display: block !important;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      z-index: 101;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      font-size: 17px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .modal .btn-close {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #999;
+      cursor: pointer;
+    }
+
+    /* 我的预约页 */
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 12px 14px;
+      font-size: 15px;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .search-box button {
+      padding: 12px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* 关于页 */
+    .about-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .about-card h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .about-card p {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    .about-card .feature-list {
+      margin-top: 16px;
+    }
+
+    .about-card .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+
+    .about-card .feature-item:last-child {
+      border-bottom: none;
+    }
+
+    .about-card .feature-item .icon {
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 头部 -->
+  <div class="header">
+    <h1>🌿 养生理疗馆</h1>
+    <p>专业推拿 · 艾灸 · 刮痧 · 拔罐</p>
+  </div>
+
+  <!-- 导航 -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" data-tab="book">预约</div>
+    <div class="nav-tab" data-tab="my">我的预约</div>
+    <div class="nav-tab" data-tab="about">关于</div>
+  </div>
+
+  <!-- 内容 -->
+  <div class="content">
+    <!-- 预约页 -->
+    <div class="page active" id="page-book">
+      <div class="date-section">
+        <h3>📅 选择日期</h3>
+        <div class="date-list" id="dateList"></div>
+      </div>
+
+      <div class="time-section">
+        <h3>⏰ 选择时段（剩余/总名额）</h3>
+        <div class="time-list" id="timeList"></div>
+      </div>
+
+      <div class="form-section">
+        <h3 style="font-size:15px;margin-bottom:16px;color:#333;">📝 填写信息</h3>
+        <div class="form-item">
+          <label>姓名</label>
+          <input type="text" id="nameInput" placeholder="请输入您的姓名" maxlength="20">
+        </div>
+        <div class="form-item">
+          <label>手机号</label>
+          <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11">
+        </div>
+        <button class="btn btn-primary" id="bookBtn" disabled>确认预约</button>
+      </div>
+
+      <div class="tips">
+        💡 温馨提示：预约成功后可在我<span style="color:#667eea;font-weight:600">的预约</span>中查看或取消/改约
+      </div>
+    </div>
+
+    <!-- 我的预约页 -->
+    <div class="page" id="page-my">
+      <div class="search-box">
+        <input type="tel" id="searchPhone" placeholder="输入手机号查询预约">
+        <button id="searchBtn">查询</button>
+      </div>
+      <div id="myBookings"></div>
+    </div>
+
+    <!-- 关于页 -->
+    <div class="page" id="page-about">
+      <div class="about-card">
+        <h3>📍 店铺信息</h3>
+        <p>营业时间：周一至周日 9:30-12:30，14:30-16:30</p>
+        <p>地址：咸阳市秦都区（示例地址）</p>
+        <p>电话：029-12345678</p>
+        
+        <div class="feature-list">
+          <div class="feature-item">
+            <span class="icon">⏱️</span>
+            <span>每次服务时长 60 分钟</span>
+          </div>
+          <div class="feature-item">
+            <span class="icon">👥</span>
+            <span>每个时段最多接待 3 位顾客</span>
+          </div>
+          <div class="feature-item">
+            <span class="icon">🔄</span>
+            <span>支持随时取消和改约</span>
+          </div>
+          <div class="feature-item">
+            <span class="icon">✅</span>
+            <span>无需审核，即约即确认</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 改约弹窗 -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+  <div class="modal" id="changeModal">
+    <button class="btn-close" id="modalClose">×</button>
+    <h3>🔄 改约时间段</h3>
+    <div class="date-section" style="box-shadow:none;padding:0;margin-bottom:12px;">
+      <div class="date-list" id="changeDateList"></div>
+    </div>
+    <div class="time-list" id="changeTimeList"></div>
+    <button class="btn btn-primary" id="confirmChangeBtn" disabled style="margin-top:16px;">确认改约</button>
+  </div>
+
+  <script>
+    // ===== 配置 =====
+    const CONFIG = {
+      maxPerSlot: 3,  // 每时段最多3人
+      slotDuration: 60, // 分钟
+      timeSlots: [
+        { start: '09:30', end: '10:30' },
+        { start: '10:30', end: '11:30' },
+        { start: '11:30', end: '12:30' },
+        { start: '14:30', end: '15:30' },
+        { start: '15:30', end: '16:30' }
+      ],
+      storageKey: 'liaoliyuan_bookings'
+    };
+
+    // ===== 状态 =====
+    let selectedDate = null;
+    let selectedTime = null;
+    let myBookings = [];
+    let currentChangeBooking = null;
+
+    // ===== 初始化 =====
+    function init() {
+      loadBookings();
+      renderDates();
+      setupEventListeners();
+    }
+
+    // ===== 数据操作 =====
+    function loadBookings() {
+      const data = localStorage.getItem(CONFIG.storageKey);
+      myBookings = data ? JSON.parse(data) : [];
+    }
+
+    function saveBookings() {
+      localStorage.setItem(CONFIG.storageKey, JSON.stringify(myBookings));
+    }
+
+    function getToday() {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    }
+
+    function getDateStr(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    function formatDateCN(dateStr) {
+      const d = new Date(dateStr);
+      const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      return {
+        month: d.getMonth() + 1 + '月',
+        day: d.getDate(),
+        week: weekdays[d.getDay()]
+      };
+    }
+
+    // ===== 渲染日期列表 =====
+    function renderDates() {
+      const container = document.getElementById('dateList');
+      const today = new Date();
+      let html = '';
+
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const dateStr = getDateStr(date);
+        const info = formatDateCN(dateStr);
+        const isToday = i === 0;
+        
+        html += `
+          <div class="date-item ${isToday ? 'selected' : ''}" data-date="${dateStr}">
+            <div class="week">${info.week}</div>
+            <div class="day">${info.day}</div>
+            <div class="month">${info.month}</div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      
+      // 默认选今天
+      selectedDate = getDateStr(today);
+      renderTimeSlots();
+    }
+
+    // ===== 渲染时段 =====
+    function renderTimeSlots() {
+      const container = document.getElementById('timeList');
+      
+      // 计算每个时段的剩余名额
+      const slotsWithRemain = CONFIG.timeSlots.map(slot => {
+        const count = myBookings.filter(b => 
+          b.date === selectedDate && 
+          b.timeSlot === slot.start && 
+          b.status !== 'cancelled'
+        ).length;
+        return {
+          ...slot,
+          remain: CONFIG.maxPerSlot - count,
+          isFull: count >= CONFIG.maxPerSlot
+        };
+      });
+
+      let html = '';
+      slotsWithRemain.forEach(slot => {
+        const disabled = slot.isFull ? 'disabled' : '';
+        const selected = selectedTime === slot.start ? 'selected' : '';
+        
+        html += `
+          <div class="time-item ${disabled} ${selected}" data-time="${slot.start}">
+            <span class="time">${slot.start} - ${slot.end}</span>
+            ${slot.isFull 
+              ? '<span class="full-tag">已约满</span>'
+              : `<span class="remain">剩${slot.remain}位</span>`
+            }
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      updateBookBtn();
+    }
+
+    // ===== 事件绑定 =====
+    function setupEventListeners() {
+      // 导航切换
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById('page-' + tab.dataset.tab).classList.add('active');
+          
+          if (tab.dataset.tab === 'my') {
+            document.getElementById('searchPhone').value = '';
+            document.getElementById('myBookings').innerHTML = '';
+          }
+        });
+      });
+
+      // 日期选择
+      document.getElementById('dateList').addEventListener('click', e => {
+        const item = e.target.closest('.date-item');
+        if (item) {
+          document.querySelectorAll('#dateList .date-item').forEach(d => d.classList.remove('selected'));
+          item.classList.add('selected');
+          selectedDate = item.dataset.date;
+          selectedTime = null;
+          renderTimeSlots();
+        }
+      });
+
+      // 时段选择
+      document.getElementById('timeList').addEventListener('click', e => {
+        const item = e.target.closest('.time-item');
+        if (item && !item.classList.contains('disabled')) {
+          document.querySelectorAll('#timeList .time-item').forEach(t => t.classList.remove('selected'));
+          item.classList.add('selected');
+          selectedTime = item.dataset.time;
+          updateBookBtn();
+        }
+      });
+
+      // 预约按钮
+      document.getElementById('bookBtn').addEventListener('click', handleBook);
+
+      // 查询按钮
+      document.getElementById('searchBtn').addEventListener('click', handleSearch);
+      document.getElementById('searchPhone').addEventListener('keypress', e => {
+        if (e.key === 'Enter') handleSearch();
+      });
+
+      // 改约弹窗
+      document.getElementById('modalOverlay').addEventListener('click', closeChangeModal);
+      document.getElementById('modalClose').addEventListener('click', closeChangeModal);
+      document.getElementById('confirmChangeBtn').addEventListener('click', confirmChange);
+    }
+
+    // ===== 更新预约按钮状态 =====
+    function updateBookBtn() {
+      const name = document.getElementById('nameInput').value.trim();
+      const phone = document.getElementById('phoneInput').value.trim();
+      const btn = document.getElementById('bookBtn');
+      
+      const isValid = name && phone && selectedTime && selectedDate && validatePhone(phone);
+      btn.disabled = !isValid;
+    }
+
+    // ===== 手机号验证 =====
+    function validatePhone(phone) {
+      return /^1[3-9]\d{9}$/.test(phone);
+    }
+
+    // ===== 处理预约 =====
+    function handleBook() {
+      const name = document.getElementById('nameInput').value.trim();
+      const phone = document.getElementById('phoneInput').value.trim();
+
+      if (!validatePhone(phone)) {
+        showToast('请输入正确的手机号');
+        return;
+      }
+
+      // 检查是否重复预约同日时段
+      const exists = myBookings.find(b => 
+        b.phone === phone && 
+        b.date === selectedDate && 
+        b.timeSlot === selectedTime &&
+        b.status !== 'cancelled'
+      );
+
+      if (exists) {
+        showToast('您已预约过此时段');
+        return;
+      }
+
+      // 创建预约
+      const booking = {
+        id: Date.now().toString(),
+        name,
+        phone,
+        date: selectedDate,
+        timeSlot: selectedTime,
+        status: 'confirmed',
+        createdAt: new Date().toISOString()
+      };
+
+      myBookings.push(booking);
+      saveBookings();
+
+      // 清空表单
+      document.getElementById('nameInput').value = '';
+      document.getElementById('phoneInput').value = '';
+      selectedTime = null;
+      renderTimeSlots();
+
+      showToast('预约成功！');
+    }
+
+    // ===== 处理查询 =====
+    function handleSearch() {
+      const phone = document.getElementById('searchPhone').value.trim();
+      
+      if (!validatePhone(phone)) {
+        showToast('请输入正确的手机号');
+        return;
+      }
+
+      const bookings = myBookings
+        .filter(b => b.phone === phone)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      renderMyBookings(bookings);
+    }
+
+    // ===== 渲染我的预约 =====
+    function renderMyBookings(bookings) {
+      const container = document.getElementById('myBookings');
+
+      if (bookings.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <p>暂无预约记录</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      bookings.forEach(booking => {
+        const info = formatDateCN(booking.date);
+        const isPast = booking.date < getToday();
+        const isCancelled = booking.status === 'cancelled';
+        const slotInfo = CONFIG.timeSlots.find(s => s.start === booking.timeSlot);
+
+        html += `
+          <div class="booking-card">
+            <div class="card-header">
+              <span class="card-date">${info.month}${info.day} ${info.week}</span>
+              <span class="card-status ${isCancelled ? 'cancelled' : 'confirmed'}">
+                ${isCancelled ? '已取消' : isPast ? '已完成' : '待服务'}
+              </span>
+            </div>
+            <div class="card-info">
+              <span>⏰ ${slotInfo ? slotInfo.start + ' - ' + slotInfo.end : booking.timeSlot}</span>
+              <span>👤 ${booking.name}</span>
+            </div>
+            ${!isPast && !isCancelled ? `
+              <div class="card-actions">
+                <button class="btn-cancel" onclick="cancelBooking('${booking.id}')">取消预约</button>
+                <button class="btn-change" onclick="openChangeModal('${booking.id}')">改约</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ===== 取消预约 =====
+    function cancelBooking(id) {
+      const booking = myBookings.find(b => b.id === id);
+      if (booking) {
+        booking.status = 'cancelled';
+        saveBookings();
+        showToast('已取消预约');
+        handleSearch(); // 刷新列表
+      }
+    }
+
+    // ===== 打开改约弹窗 =====
+    function openChangeModal(id) {
+      currentChangeBooking = myBookings.find(b => b.id === id);
+      if (!currentChangeBooking) return;
+
+      // 渲染改约日期（排除今天之前的）
+      const container = document.getElementById('changeDateList');
+      const today = new Date();
+      let html = '';
+
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const dateStr = getDateStr(date);
+        const info = formatDateCN(dateStr);
+        const isSelected = dateStr === currentChangeBooking.date ? 'selected' : '';
+        
+        html += `
+          <div class="date-item ${isSelected}" data-date="${dateStr}">
+            <div class="week">${info.week}</div>
+            <div class="day">${info.day}</div>
+            <div class="month">${info.month}</div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      
+      // 渲染改约时段
+      renderChangeTimeSlots();
+
+      // 显示弹窗
+      document.getElementById('modalOverlay').classList.add('show');
+      document.getElementById('changeModal').classList.add('show');
+    }
+
+    // ===== 关闭改约弹窗 =====
+    function closeChangeModal() {
+      document.getElementById('modalOverlay').classList.remove('show');
+      document.getElementById('changeModal').classList.remove('show');
+      currentChangeBooking = null;
+    }
+
+    // ===== 渲染改约时段 =====
+    function renderChangeTimeSlots() {
+      const container = document.getElementById('changeTimeList');
+      const changeDate = document.querySelector('#changeDateList .date-item.selected')?.dataset.date;
+      
+      if (!changeDate) {
+        container.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">请先选择日期</p>';
+        return;
+      }
+
+      const slotsWithRemain = CONFIG.timeSlots.map(slot => {
+        const count = myBookings.filter(b => 
+          b.date === changeDate && 
+          b.timeSlot === slot.start && 
+          b.status !== 'cancelled' &&
+          b.id !== currentChangeBooking?.id // 排除当前预约
+        ).length;
+        return {
+          ...slot,
+          remain: CONFIG.maxPerSlot - count,
+          isFull: count >= CONFIG.maxPerSlot
+        };
+      });
+
+      let html = '';
+      slotsWithRemain.forEach(slot => {
+        const disabled = slot.isFull ? 'disabled' : '';
+        const isCurrent = slot.start === currentChangeBooking?.timeSlot ? 'selected' : '';
+        
+        html += `
+          <div class="time-item ${disabled} ${isCurrent}" data-time="${slot.start}">
+            <span class="time">${slot.start} - ${slot.end}</span>
+            ${slot.isFull 
+              ? '<span class="full-tag">已约满</span>'
+              : `<span class="remain">剩${slot.remain}位</span>`
+            }
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      // 绑定改约日期选择
+      document.getElementById('changeDateList').onclick = e => {
+        const item = e.target.closest('.date-item');
+        if (item) {
+          document.querySelectorAll('#changeDateList .date-item').forEach(d => d.classList.remove('selected'));
+          item.classList.add('selected');
+          renderChangeTimeSlots();
+        }
+      };
+
+      // 绑定改约时段选择
+      container.onclick = e => {
+        const item = e.target.closest('.time-item');
+        if (item && !item.classList.contains('disabled')) {
+          document.querySelectorAll('#changeTimeList .time-item').forEach(t => t.classList.remove('selected'));
+          item.classList.add('selected');
+          document.getElementById('confirmChangeBtn').disabled = false;
+        }
+      };
+    }
+
+    // ===== 确认改约 =====
+    function confirmChange() {
+      const newDate = document.querySelector('#changeDateList .date-item.selected')?.dataset.date;
+      const newTime = document.querySelector('#changeTimeList .time-item.selected')?.dataset.time;
+
+      if (!newDate || !newTime) {
+        showToast('请选择新的时间和日期');
+        return;
+      }
+
+      if (currentChangeBooking) {
+        currentChangeBooking.date = newDate;
+        currentChangeBooking.timeSlot = newTime;
+        saveBookings();
+        closeChangeModal();
+        showToast('改约成功！');
+        handleSearch();
+      }
+    }
+
+    // ===== Toast提示 =====
+    function showToast(msg) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+
+      setTimeout(() => toast.remove(), 2000);
+    }
+
+    // ===== 输入监听 =====
+    document.getElementById('nameInput').addEventListener('input', updateBookBtn);
+    document.getElementById('phoneInput').addEventListener('input', updateBookBtn);
+
+    // 启动
+    init();
+  </script>
+</body>
+</html>
