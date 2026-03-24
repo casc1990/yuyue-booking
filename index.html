@@ -634,6 +634,67 @@
   </div>
 
   <script>
+    // ===== 飞书配置 =====
+    const FEISHU = {
+      appId: 'cli_a948c8e789b81bef',
+      appSecret: 'Y9x56ZRTJYhyEPeHFhXFJb5yaUVWKZh2',
+      appToken: 'Tt7WbdPzDahXLtsHRFAcuJbEnAh',
+      tableId: 'tblylpjywtF5QFST',
+      tokenCache: null,
+      tokenExpiry: 0
+    };
+
+    // ===== 飞书 API =====
+    async function getFeishuToken() {
+      if (FEISHU.tokenCache && Date.now() < FEISHU.tokenExpiry) {
+        return FEISHU.tokenCache;
+      }
+      const resp = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_id: FEISHU.appId, app_secret: FEISHU.appSecret })
+      });
+      const data = await resp.json();
+      if (data.tenant_access_token) {
+        FEISHU.tokenCache = data.tenant_access_token;
+        FEISHU.tokenExpiry = Date.now() + 7000000;
+        return data.tenant_access_token;
+      }
+      throw new Error('获取飞书Token失败');
+    }
+
+    async function feishuCreateRecord(fields) {
+      const token = await getFeishuToken();
+      const resp = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ fields })
+      });
+      return await resp.json();
+    }
+
+    async function feishuQueryRecords(filterFormula) {
+      const token = await getFeishuToken();
+      const url = new URL(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`);
+      if (filterFormula) {
+        url.searchParams.set('filter', filterFormula);
+      }
+      const resp = await fetch(url.toString(), {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      return await resp.json();
+    }
+
+    async function feishuUpdateRecord(recordId, fields) {
+      const token = await getFeishuToken();
+      const resp = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${recordId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ fields })
+      });
+      return await resp.json();
+    }
+
     // ===== 配置 =====
     const CONFIG = {
       maxPerSlot: 3,  // 每时段最多3人
@@ -655,20 +716,9 @@
     let currentChangeBooking = null;
 
     // ===== 初始化 =====
-    function init() {
-      loadBookings();
+    async function init() {
       renderDates();
       setupEventListeners();
-    }
-
-    // ===== 数据操作 =====
-    function loadBookings() {
-      const data = localStorage.getItem(CONFIG.storageKey);
-      myBookings = data ? JSON.parse(data) : [];
-    }
-
-    function saveBookings() {
-      localStorage.setItem(CONFIG.storageKey, JSON.stringify(myBookings));
     }
 
     function getToday() {
@@ -691,7 +741,7 @@
     }
 
     // ===== 渲染日期列表 =====
-    function renderDates() {
+    async function renderDates() {
       const container = document.getElementById('dateList');
       const today = new Date();
       let html = '';
@@ -720,22 +770,32 @@
     }
 
     // ===== 渲染时段 =====
-    function renderTimeSlots() {
+    async function renderTimeSlots() {
       const container = document.getElementById('timeList');
       
-      // 计算每个时段的剩余名额
-      const slotsWithRemain = CONFIG.timeSlots.map(slot => {
-        const count = myBookings.filter(b => 
-          b.date === selectedDate && 
-          b.timeSlot === slot.start && 
-          b.status !== 'cancelled'
-        ).length;
-        return {
-          ...slot,
-          remain: CONFIG.maxPerSlot - count,
-          isFull: count >= CONFIG.maxPerSlot
-        };
-      });
+      // 从飞书查询该日期的所有预约
+      const dateTs = new Date(selectedDate + 'T00:00:00').getTime();
+      const dateTsEnd = new Date(selectedDate + 'T23:59:59').getTime();
+      
+      let slotsWithRemain;
+      try {
+        const result = await feishuQueryRecords(`AND(CurrentValue.[预约日期]>=DATE("${selectedDate}"), CurrentValue.[预约日期]<=DATE("${selectedDate}T23:59:59"))`);
+        const allBookings = result.data?.items || [];
+        
+        slotsWithRemain = CONFIG.timeSlots.map(slot => {
+          const count = allBookings.filter(b => b.fields['预约时段'] === slot.start).length;
+          return {
+            ...slot,
+            remain: CONFIG.maxPerSlot - count,
+            isFull: count >= CONFIG.maxPerSlot
+          };
+        });
+      } catch (e) {
+        // 如果出错，显示默认
+        slotsWithRemain = CONFIG.timeSlots.map(slot => ({
+          ...slot, remain: CONFIG.maxPerSlot, isFull: false
+        }));
+      }
 
       let html = '';
       slotsWithRemain.forEach(slot => {
@@ -782,7 +842,7 @@
           item.classList.add('selected');
           selectedDate = item.dataset.date;
           selectedTime = null;
-          renderTimeSlots();
+          renderTimeSlots(); // async, don't wait
         }
       });
 
@@ -828,7 +888,7 @@
     }
 
     // ===== 处理预约 =====
-    function handleBook() {
+    async function handleBook() {
       const name = document.getElementById('nameInput').value.trim();
       const phone = document.getElementById('phoneInput').value.trim();
 
@@ -837,32 +897,27 @@
         return;
       }
 
-      // 检查是否重复预约同日时段
-      const exists = myBookings.find(b => 
-        b.phone === phone && 
-        b.date === selectedDate && 
-        b.timeSlot === selectedTime &&
-        b.status !== 'cancelled'
-      );
-
-      if (exists) {
+      // 检查是否重复预约同日时段（从飞书查询）
+      const result = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]=DATE("${selectedDate}"), CurrentValue.[预约时段]="${selectedTime}")`);
+      
+      if (result.data && result.data.items && result.data.items.length > 0) {
         showToast('您已预约过此时段');
         return;
       }
 
-      // 创建预约
-      const booking = {
-        id: Date.now().toString(),
-        name,
-        phone,
-        date: selectedDate,
-        timeSlot: selectedTime,
-        status: 'confirmed',
-        createdAt: new Date().toISOString()
-      };
+      // 写入飞书（日期转时间戳）
+      const dateTs = new Date(selectedDate + 'T00:00:00').getTime();
+      const writeResult = await feishuCreateRecord({
+        '姓名': name,
+        '电话': phone,
+        '预约日期': dateTs,
+        '预约时段': selectedTime
+      });
 
-      myBookings.push(booking);
-      saveBookings();
+      if (writeResult.code !== 0) {
+        showToast('预约失败，请重试');
+        return;
+      }
 
       // 清空表单
       document.getElementById('nameInput').value = '';
@@ -874,7 +929,7 @@
     }
 
     // ===== 处理查询 =====
-    function handleSearch() {
+    async function handleSearch() {
       const phone = document.getElementById('searchPhone').value.trim();
       
       if (!validatePhone(phone)) {
@@ -882,9 +937,27 @@
         return;
       }
 
-      const bookings = myBookings
-        .filter(b => b.phone === phone)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const result = await feishuQueryRecords(`CurrentValue.[电话]="${phone}"`);
+      
+      if (result.code !== 0) {
+        showToast('查询失败');
+        return;
+      }
+
+      const items = result.data?.items || [];
+      const bookings = items.map(item => {
+        const f = item.fields;
+        const dateMs = f['预约日期'];
+        const dateStr = dateMs ? new Date(dateMs).toISOString().split('T')[0] : '';
+        return {
+          id: item.record_id,
+          name: f['姓名'] || '',
+          phone: f['电话'] || '',
+          date: dateStr,
+          timeSlot: f['预约时段'] || '',
+          status: f['预约状态'] || 'confirmed'
+        };
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
       renderMyBookings(bookings);
     }
@@ -925,7 +998,7 @@
             ${!isPast && !isCancelled ? `
               <div class="card-actions">
                 <button class="btn-cancel" onclick="cancelBooking('${booking.id}')">取消预约</button>
-                <button class="btn-change" onclick="openChangeModal('${booking.id}')">改约</button>
+                <button class="btn-change" onclick='openChangeModal(${JSON.stringify(booking).replace(/'/g, "&#39;")})'>改约</button>
               </div>
             ` : ''}
           </div>
@@ -936,19 +1009,19 @@
     }
 
     // ===== 取消预约 =====
-    function cancelBooking(id) {
-      const booking = myBookings.find(b => b.id === id);
-      if (booking) {
-        booking.status = 'cancelled';
-        saveBookings();
-        showToast('已取消预约');
-        handleSearch(); // 刷新列表
-      }
+    async function cancelBooking(id) {
+      const token = await getFeishuToken();
+      await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      showToast('已取消预约');
+      handleSearch(); // 刷新列表
     }
 
     // ===== 打开改约弹窗 =====
-    function openChangeModal(id) {
-      currentChangeBooking = myBookings.find(b => b.id === id);
+    function openChangeModal(booking) {
+      currentChangeBooking = booking;
       if (!currentChangeBooking) return;
 
       // 渲染改约日期（排除今天之前的）
@@ -990,7 +1063,7 @@
     }
 
     // ===== 渲染改约时段 =====
-    function renderChangeTimeSlots() {
+    async function renderChangeTimeSlots() {
       const container = document.getElementById('changeTimeList');
       const changeDate = document.querySelector('#changeDateList .date-item.selected')?.dataset.date;
       
@@ -999,19 +1072,27 @@
         return;
       }
 
-      const slotsWithRemain = CONFIG.timeSlots.map(slot => {
-        const count = myBookings.filter(b => 
-          b.date === changeDate && 
-          b.timeSlot === slot.start && 
-          b.status !== 'cancelled' &&
-          b.id !== currentChangeBooking?.id // 排除当前预约
-        ).length;
-        return {
-          ...slot,
-          remain: CONFIG.maxPerSlot - count,
-          isFull: count >= CONFIG.maxPerSlot
-        };
-      });
+      let slotsWithRemain;
+      try {
+        const result = await feishuQueryRecords(`CurrentValue.[预约日期]=DATE("${changeDate}")`);
+        const allBookings = result.data?.items || [];
+        
+        slotsWithRemain = CONFIG.timeSlots.map(slot => {
+          const count = allBookings.filter(b => 
+            b.fields['预约时段'] === slot.start &&
+            b.record_id !== currentChangeBooking?.id // 排除当前预约
+          ).length;
+          return {
+            ...slot,
+            remain: CONFIG.maxPerSlot - count,
+            isFull: count >= CONFIG.maxPerSlot
+          };
+        });
+      } catch (e) {
+        slotsWithRemain = CONFIG.timeSlots.map(slot => ({
+          ...slot, remain: CONFIG.maxPerSlot, isFull: false
+        }));
+      }
 
       let html = '';
       slotsWithRemain.forEach(slot => {
@@ -1053,7 +1134,7 @@
     }
 
     // ===== 确认改约 =====
-    function confirmChange() {
+    async function confirmChange() {
       const newDate = document.querySelector('#changeDateList .date-item.selected')?.dataset.date;
       const newTime = document.querySelector('#changeTimeList .time-item.selected')?.dataset.time;
 
@@ -1063,9 +1144,11 @@
       }
 
       if (currentChangeBooking) {
-        currentChangeBooking.date = newDate;
-        currentChangeBooking.timeSlot = newTime;
-        saveBookings();
+        const dateTs = new Date(newDate + 'T00:00:00').getTime();
+        await feishuUpdateRecord(currentChangeBooking.id, {
+          '预约日期': dateTs,
+          '预约时段': newTime
+        });
         closeChangeModal();
         showToast('改约成功！');
         handleSearch();
