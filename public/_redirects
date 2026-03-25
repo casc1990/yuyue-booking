@@ -1,0 +1,3 @@
+# Cloudflare Pages 重定向规则
+# 把 /api/* 转发到 Functions
+/api/* /api/:splat 200

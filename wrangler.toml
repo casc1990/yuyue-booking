@@ -1,0 +1,6 @@
+name = "yuyue-booking"
+compatibility_date = "2024-03-25"
+
+[[pages]]
+binding = "API_URL"
+value = "https://open.feishu.cn/open-apis"
