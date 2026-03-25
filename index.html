@@ -924,10 +924,20 @@
         const result = await feishuQueryRecords(`CurrentValue.[预约日期]=DATE("${selectedDate}")`);
         
         // 调试：打印返回数据
-        console.log('查询结果:', result);
+        console.log('查询结果:', JSON.stringify(result, null, 2));
         
-        const allBookings = result.data?.items || [];
+        // 处理不同返回格式
+        let allBookings = [];
+        if (result.data && result.data.items) {
+          allBookings = result.data.items;
+        } else if (result.data && Array.isArray(result.data)) {
+          allBookings = result.data;
+        } else if (result.items) {
+          allBookings = result.items;
+        }
+        
         console.log('预约记录数:', allBookings.length);
+        console.log('预约记录详情:', allBookings);
         
         slotsWithRemain = CONFIG.timeSlots.map(slot => {
           const count = allBookings.filter(b => b.fields && b.fields['预约时段'] === slot.start).length;
