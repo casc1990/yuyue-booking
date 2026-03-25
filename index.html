@@ -923,28 +923,42 @@
       
       let slotsWithRemain;
       try {
-        // 查询当天所有预约记录 (日期格式兼容)
-        // 飞书可能存为 "2026/03/25" 或时间戳，需要同时查询
-        const result = await feishuQueryRecords(`CurrentValue.[预约日期]="${selectedDate}" OR CurrentValue.[预约日期]="${selectedDate.replace(/-/g, '/')}"`);
+        // 先查询所有记录，看返回什么
+        console.log('开始查询...');
+        
+        const result = await feishuQueryRecords('');
+        
+        console.log('原始返回:', result);
         
         // 处理飞书返回的不同数据格式
         let allBookings = [];
         if (Array.isArray(result)) {
-          // 直接返回数组格式
           allBookings = result;
         } else if (result.data && result.data.items) {
-          // { data: { items: [...] } } 格式
           allBookings = result.data.items;
         } else if (result.items) {
-          // { items: [...] } 格式
           allBookings = result.items;
         }
         
-        console.log('预约记录数:', allBookings.length);
-        console.log('预约记录详情:', allBookings);
+        console.log('总预约记录数:', allBookings.length);
+        console.log('原始记录示例:', allBookings.slice(0, 3));
+        
+        // 前端过滤当天日期
+        const targetDate = selectedDate;
+        const targetDateAlt = selectedDate.replace(/-/g, '/');
+        
+        const filteredBookings = allBookings.filter(b => {
+          const bDate = b['预约日期'];
+          if (!bDate) return false;
+          // 兼容多种日期格式
+          return bDate === targetDate || bDate === targetDateAlt || 
+                 bDate.startsWith(targetDate) || bDate.startsWith(targetDateAlt);
+        });
+        
+        console.log('过滤后记录数:', filteredBookings.length);
         
         slotsWithRemain = CONFIG.timeSlots.map(slot => {
-          const count = allBookings.filter(b => b['预约时段'] === slot.start).length;
+          const count = filteredBookings.filter(b => b['预约时段'] === slot.start).length;
           console.log(`时段 ${slot.start}: 预约数=${count}`);
           return {
             ...slot,
