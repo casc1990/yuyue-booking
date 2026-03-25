@@ -910,7 +910,9 @@
       
       // 默认选今天
       selectedDate = getDateStr(today);
-      renderTimeSlots();
+      
+      // 确保渲染完日期后再渲染时段
+      await renderTimeSlots();
     }
 
     // ===== 渲染时段 =====
