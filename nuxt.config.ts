@@ -3,8 +3,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: false },
   
-  // 禁用服务器端渲染
-  ssr: false,
+  // 静态生成模式，适合 Cloudflare Pages
+  ssr: true,
   
   future: {
     compatibilityVersion: 4,
@@ -19,8 +19,8 @@ export default defineNuxtConfig({
     }
   },
   
-  // Vercel 部署配置
+  // Cloudflare Pages 配置
   nitro: {
-    preset: 'vercel'
+    preset: 'static'
   }
 })
