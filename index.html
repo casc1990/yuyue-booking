@@ -1111,12 +1111,21 @@
 
       showLoading('正在提交预约...');
 
-      // 检查是否重复预约同日时段（从飞书查询）
+      // 检查是否重复预约同日时段（按手机号+日期+时段）
       const result = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]=DATE("${selectedDate}"), CurrentValue.[预约时段]="${selectedTime}")`);
       
       if (result.data && result.data.items && result.data.items.length > 0) {
         hideLoading();
         showToast('您已预约过此时段');
+        return;
+      }
+
+      // 检查同一姓名同一时段是否已预约
+      const nameCheck = await feishuQueryRecords(`AND(CurrentValue.[姓名]="${name}", CurrentValue.[预约日期]=DATE("${selectedDate}"), CurrentValue.[预约时段]="${selectedTime}")`);
+      
+      if (nameCheck.data && nameCheck.data.items && nameCheck.data.items.length > 0) {
+        hideLoading();
+        showToast('该时段已被预约');
         return;
       }
 
@@ -1145,7 +1154,9 @@
       document.getElementById('phoneInput').value = '';
       document.getElementById('remarkInput').value = '';
       selectedTime = null;
-      renderTimeSlots();
+      
+      // 刷新时段列表，更新剩余名额
+      await renderTimeSlots();
 
       showToast('预约成功！');
     }
