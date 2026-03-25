@@ -1146,78 +1146,104 @@
       const remark = document.getElementById('remarkInput').value.trim();
 
       showLoading('正在提交预约...');
+      
+      // 添加超时保护
+      const timeoutMs = 15000;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('请求超时')), timeoutMs)
+      );
 
-      // 检查是否重复预约同日时段（按手机号+日期+时段）
-      // 尝试两种日期格式
-      const dateForQuery = selectedDate.replace(/-/g, '/');
-      let existingBookings = [];
-      
-      const result1 = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]="${selectedDate}", CurrentValue.[预约时段]="${selectedTime}")`);
-      if (result1 && Array.isArray(result1)) {
-        existingBookings = result1;
-      } else if (result1.data?.items) {
-        existingBookings = result1.data.items;
-      }
-      
-      if (existingBookings.length === 0) {
-        const result2 = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]="${dateForQuery}", CurrentValue.[预约时段]="${selectedTime}")`);
-        if (result2 && Array.isArray(result2)) {
-          existingBookings = result2;
-        } else if (result2.data?.items) {
-          existingBookings = result2.data.items;
+      try {
+        // 检查是否重复预约同日时段（按手机号+日期+时段）
+        // 使用简化查询，不依赖飞书filter语法
+        const allResult = await feishuQueryRecords('');
+        
+        // 处理返回数据
+        let allBookings = [];
+        if (Array.isArray(allResult)) {
+          allBookings = allResult;
+        } else if (allResult.data?.items) {
+          allBookings = allResult.data.items;
+        } else if (allResult.items) {
+          allBookings = allResult.items;
         }
-      }
-      
-      if (existingBookings.length > 0) {
-        hideLoading();
-        showToast('您已预约过此时段');
-        return;
-      }
-
-      // 检查同一姓名同一时段是否已预约
-      let nameBookings = [];
-      const nameCheck1 = await feishuQueryRecords(`AND(CurrentValue.[姓名]="${name}", CurrentValue.[预约日期]="${selectedDate}", CurrentValue.[预约时段]="${selectedTime}")`);
-      if (nameCheck1 && Array.isArray(nameCheck1)) {
-        nameBookings = nameCheck1;
-      } else if (nameCheck1.data?.items) {
-        nameBookings = nameCheck1.data.items;
-      }
-      
-      if (nameBookings.length === 0) {
-        const nameCheck2 = await feishuQueryRecords(`AND(CurrentValue.[姓名]="${name}", CurrentValue.[预约日期]="${dateForQuery}", CurrentValue.[预约时段]="${selectedTime}")`);
-        if (nameCheck2 && Array.isArray(nameCheck2)) {
-          nameBookings = nameCheck2;
-        } else if (nameCheck2.data?.items) {
-          nameBookings = nameCheck2.data.items;
+        
+        console.log('查询到总记录数:', allBookings.length);
+        
+        // 前端过滤当日同时段的预约
+        const targetDate = selectedDate;
+        const targetDateAlt = selectedDate.replace(/-/g, '/');
+        
+        const todayBookings = allBookings.filter(b => {
+          const bDate = b['预约日期'];
+          if (!bDate) return false;
+          return bDate === targetDate || bDate === targetDateAlt || 
+                 bDate.startsWith(targetDate) || bDate.startsWith(targetDateAlt);
+        });
+        
+        // 检查手机号重复
+        const phoneExists = todayBookings.some(b => b['电话'] === phone && b['预约时段'] === selectedTime);
+        if (phoneExists) {
+          hideLoading();
+          showToast('您已预约过此时段');
+          return;
         }
-      }
-      
-      if (nameBookings.length > 0) {
-        hideLoading();
-        showToast('该时段已被预约');
-        return;
-      }
-      
-      if (nameCheck.data && nameCheck.data.items && nameCheck.data.items.length > 0) {
-        hideLoading();
-        showToast('该时段已被预约');
-        return;
-      }
+        
+        // 检查姓名重复
+        const nameExists = todayBookings.some(b => b['姓名'] === name && b['预约时段'] === selectedTime);
+        if (nameExists) {
+          hideLoading();
+          showToast('该时段已被预约');
+          return;
+        }
+        
+        // 写入飞书（日期转时间戳）
+        showLoading('正在写入数据...');
+        const dateTs = new Date(selectedDate + 'T00:00:00').getTime();
+        const fields = {
+          '姓名': name,
+          '电话': phone,
+          '预约日期': dateTs,
+          '预约时段': selectedTime
+        };
+        if (remark) fields['备注'] = remark;
+        
+        const writeResult = await feishuCreateRecord(fields);
 
-      // 写入飞书（日期转时间戳）
-      showLoading('正在写入数据...');
-      const dateTs = new Date(selectedDate + 'T00:00:00').getTime();
-      const fields = {
-        '姓名': name,
-        '电话': phone,
-        '预约日期': dateTs,
-        '预约时段': selectedTime
-      };
-      if (remark) fields['备注'] = remark;
-      
-      const writeResult = await feishuCreateRecord(fields);
+        hideLoading();
 
-      hideLoading();
+        if (writeResult.code !== 0) {
+          showToast('预约失败，请重试');
+          return;
+        }
+
+        // 清空表单
+        document.getElementById('nameInput').value = '';
+        document.getElementById('phoneInput').value = '';
+        document.getElementById('remarkInput').value = '';
+        selectedTime = null;
+        
+        // 刷新时段列表，更新剩余名额
+        await renderTimeSlots();
+
+        showToast('预约成功！');
+        
+        // 自动切换到"我的预约"页面
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelector('.nav-tab[data-tab="my"]').classList.add('active');
+        document.getElementById('page-my').classList.add('active');
+        
+        // 自动查询该手机号的预约
+        document.getElementById('searchPhone').value = phone;
+        handleSearch();
+        
+      } catch (error) {
+        console.error('预约提交出错:', error);
+        hideLoading();
+        showToast('网络错误，请重试');
+      }
+    }
 
       if (writeResult.code !== 0) {
         showToast('预约失败，请重试');
