@@ -920,7 +920,8 @@
       
       let slotsWithRemain;
       try {
-        const result = await feishuQueryRecords(`AND(CurrentValue.[预约日期]>=DATE("${selectedDate}"), CurrentValue.[预约日期]<=DATE("${selectedDate}T23:59:59"))`);
+        // 查询当天所有预约记录
+        const result = await feishuQueryRecords(`CurrentValue.[预约日期]=DATE("${selectedDate}")`);
         const allBookings = result.data?.items || [];
         
         slotsWithRemain = CONFIG.timeSlots.map(slot => {
