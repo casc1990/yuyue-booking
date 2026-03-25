@@ -1,5 +1,5 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import { tmpdir } from 'node:os';
-import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, createError, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, setHeader, getResponseStatusText } from 'file:///Users/pengbo/.openclaw/workspace/yuyue-booking-nuxt/node_modules/h3/dist/index.mjs';
+import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, appendResponseHeader, getRequestURL, getResponseHeader, removeResponseHeader, createError, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, getRouterParam, getResponseStatusText } from 'file:///Users/pengbo/.openclaw/workspace/yuyue-booking-nuxt/node_modules/h3/dist/index.mjs';
 import { Server } from 'node:http';
 import { resolve, dirname, join } from 'node:path';
 import nodeCrypto from 'node:crypto';
@@ -2121,7 +2121,22 @@ const plugins = [
 _wH6JrtIxmaSoA8lCPWFnE9z4lQeXW6H5z3l5aymEQw
 ];
 
-const assets = {};
+const assets = {
+  "/index.mjs": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1ade2-2OAnP1E9zgl+ofc7qo1KdjQQtgU\"",
+    "mtime": "2026-03-25T08:29:33.648Z",
+    "size": 110050,
+    "path": "index.mjs"
+  },
+  "/index.mjs.map": {
+    "type": "application/json",
+    "etag": "\"6d41b-gcsSx0+BLRgRH4qUJw6HkKRFofo\"",
+    "mtime": "2026-03-25T08:29:33.648Z",
+    "size": 447515,
+    "path": "index.mjs.map"
+  }
+};
 
 function readAsset (id) {
   const serverDir = dirname$1(fileURLToPath(globalThis._importMeta_.url));
@@ -2583,12 +2598,10 @@ async function getIslandContext(event) {
 	};
 }
 
-const _lazy_l1AHMu = () => Promise.resolve().then(function () { return feishu$1; });
 const _lazy_pQz5E5 = () => Promise.resolve().then(function () { return renderer; });
 
 const handlers = [
   { route: '', handler: _xawZAD, lazy: false, middleware: true, method: undefined },
-  { route: '/api/feishu', handler: _lazy_l1AHMu, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_error', handler: _lazy_pQz5E5, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: handler$1, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_pQz5E5, lazy: true, middleware: false, method: undefined }
@@ -2929,88 +2942,6 @@ const styles = {};
 const styles$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
   default: styles
-}, Symbol.toStringTag, { value: 'Module' }));
-
-const FEISHU_API = "https://open.feishu.cn/open-apis";
-const FEISHU = {
-  appId: "cli_a948c8e789b81bef",
-  appSecret: "Y9x56ZRTJYhyEPeHFhXFJb5yaUVWKZh2",
-  appToken: "Tt7WbdPzDahXLtsHRFAcuJbEnAh",
-  tableId: "tblylpjywtF5QFST"
-};
-async function getToken() {
-  const resp = await fetch(`${FEISHU_API}/auth/v3/tenant_access_token/internal`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      app_id: FEISHU.appId,
-      app_secret: FEISHU.appSecret
-    })
-  });
-  const data = await resp.json();
-  return data.tenant_access_token;
-}
-const feishu = defineEventHandler(async (event) => {
-  const method = event.method;
-  setHeader(event, "Access-Control-Allow-Origin", "*");
-  setHeader(event, "Access-Control-Allow-Headers", "Content-Type");
-  if (method === "OPTIONS") {
-    return { code: 0 };
-  }
-  try {
-    const token = await getToken();
-    const headers = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    };
-    if (method === "GET") {
-      const query = getQuery$1(event);
-      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`;
-      const url = query.filter ? `${path}?filter=${encodeURIComponent(query.filter)}` : path;
-      const resp = await fetch(`https://open.feishu.cn${url}`, { headers });
-      return await resp.json();
-    }
-    if (method === "POST") {
-      const body = await readBody(event);
-      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records`;
-      const resp = await fetch(`https://open.feishu.cn${path}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body)
-      });
-      return await resp.json();
-    }
-    if (method === "PUT") {
-      const body = await readBody(event);
-      const recordId = body.record_id;
-      delete body.record_id;
-      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${recordId}`;
-      const resp = await fetch(`https://open.feishu.cn${path}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ fields: body })
-      });
-      return await resp.json();
-    }
-    if (method === "DELETE") {
-      const query = getQuery$1(event);
-      const recordId = query.id;
-      const path = `/bitable/v1/apps/${FEISHU.appToken}/tables/${FEISHU.tableId}/records/${recordId}`;
-      const resp = await fetch(`https://open.feishu.cn${path}`, {
-        method: "DELETE",
-        headers
-      });
-      return await resp.json();
-    }
-    return { code: 400, msg: "Unknown method" };
-  } catch (err) {
-    return { code: 500, msg: err.message };
-  }
-});
-
-const feishu$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
-  __proto__: null,
-  default: feishu
 }, Symbol.toStringTag, { value: 'Module' }));
 
 function renderPayloadResponse(ssrContext) {
