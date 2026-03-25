@@ -141,7 +141,8 @@ const loading = ref(false)
 const loadingText = ref('')
 const toast = ref('')
 
-const API = '/api/feishu'
+const API = 'https://api.cloudflare.com/client/v4/accounts/266b118cf612f91c8b6dcbf81cc65e19/d1/database/2f1426cc-6491-4e4f-bc99-44ced6fff6e5/query'
+const D1_TOKEN = 'cfat_cPahg4lZLwPAgkLOBDX8jmxgf1IORtRIQlIz9JMvbc5d1c0f'
 
 // 初始化日期
 const initDates = () => {
@@ -187,9 +188,18 @@ const confirmDate = computed(() => {
 // 加载时段
 const loadTimeSlots = async () => {
   try {
-    const res = await fetch(`${API}?filter=CurrentValue.[预约日期]="${selectedDate.value.replace(/-/g, '/')}"`)
+    const sql = `SELECT * FROM bookings WHERE date = '${selectedDate.value}'`
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${D1_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sql })
+    })
     const data = await res.json()
-    const items = data.data?.items || []
+    const items = data.result?.[0]?.results || []
+    
     timeSlots.value = [
       { start: '09:30', end: '10:30', remain: 3, isFull: false },
       { start: '10:30', end: '11:30', remain: 3, isFull: false },
@@ -198,7 +208,7 @@ const loadTimeSlots = async () => {
       { start: '15:30', end: '16:30', remain: 3, isFull: false }
     ]
     timeSlots.value.forEach(slot => {
-      const count = items.filter(i => i.fields?.['预约时段'] === slot.start).length
+      const count = items.filter(i => i.time_slot === slot.start).length
       slot.remain = 3 - count
       slot.isFull = count >= 3
     })
@@ -226,23 +236,24 @@ const confirmSubmit = async () => {
   loadingText.value = '正在提交预约...'
   
   try {
-    const dateTs = new Date(selectedDate.value + 'T00:00:00').getTime()
+    const id = Date.now().toString()
+    const createdAt = Math.floor(Date.now() / 1000)
+    const sql = `INSERT INTO bookings (id, name, phone, date, time_slot, remark, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)`
+    
     const res = await fetch(API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${D1_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        fields: {
-          '姓名': name.value,
-          '电话': phone.value,
-          '预约日期': dateTs,
-          '预约时段': selectedTime.value,
-          '备注': remark.value
-        }
+        sql: sql,
+        params: [id, name.value, phone.value, selectedDate.value, selectedTime.value, remark.value || '', createdAt]
       })
     })
     const data = await res.json()
     
-    if (data.code !== 0) {
+    if (!data.success) {
       showToast('预约失败')
       loading.value = false
       return
@@ -262,6 +273,7 @@ const confirmSubmit = async () => {
     searchPhone.value = phone.value
     handleSearch()
   } catch (e) {
+    console.error(e)
     showToast('预约失败')
   }
   
@@ -274,14 +286,22 @@ const handleSearch = async () => {
   loadingText.value = '正在查询...'
   
   try {
-    const res = await fetch(`${API}?filter=CurrentValue.[电话]="${searchPhone.value}"`)
+    const sql = `SELECT * FROM bookings WHERE phone = '${searchPhone.value}' ORDER BY created_at DESC`
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${D1_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sql })
+    })
     const data = await res.json()
-    const items = data.data?.items || []
+    const items = data.result?.[0]?.results || []
     bookings.value = items.map(i => ({
-      id: i.record_id,
-      date: new Date(i.fields?.['预约日期']).toISOString().split('T')[0],
-      timeSlot: i.fields?.['预约时段'],
-      status: i.fields?.['预约状态'] || 'confirmed'
+      id: i.id,
+      date: i.date,
+      timeSlot: i.time_slot,
+      status: i.status
     }))
   } catch (e) {
     showToast('查询失败')
@@ -296,7 +316,15 @@ const cancelBooking = async (id) => {
   loadingText.value = '正在取消...'
   
   try {
-    await fetch(`${API}?id=${id}`, { method: 'DELETE' })
+    const sql = `DELETE FROM bookings WHERE id = '${id}'`
+    await fetch(API, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${D1_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sql })
+    })
     showToast('已取消')
     handleSearch()
   } catch (e) {
