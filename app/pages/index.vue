@@ -141,8 +141,10 @@ const loading = ref(false)
 const loadingText = ref('')
 const toast = ref('')
 
-const API = 'https://api.cloudflare.com/client/v4/accounts/266b118cf612f91c8b6dcbf81cc65e19/d1/database/2f1426cc-6491-4e4f-bc99-44ced6fff6e5/query'
+const API = '/api/feishu'
 const D1_TOKEN = 'cfat_cPahg4lZLwPAgkLOBDX8jmxgf1IORtRIQlIz9JMvbc5d1c0f'
+const D1_DB_ID = '2f1426cc-6491-4e4f-bc99-44ced6fff6e5'
+const ACCOUNT_ID = '266b118cf612f91c8b6dcbf81cc65e19'
 
 // 初始化日期
 const initDates = () => {
@@ -192,13 +194,18 @@ const loadTimeSlots = async () => {
     const res = await fetch(API, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${D1_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ sql })
+      body: JSON.stringify({ 
+        action: 'query',
+        sql: sql,
+        accountId: ACCOUNT_ID,
+        dbId: D1_DB_ID,
+        token: D1_TOKEN
+      })
     })
     const data = await res.json()
-    const items = data.result?.[0]?.results || []
+    const items = data.results || []
     
     timeSlots.value = [
       { start: '09:30', end: '10:30', remain: 3, isFull: false },
@@ -242,13 +249,14 @@ const confirmSubmit = async () => {
     
     const res = await fetch(API, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${D1_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        action: 'execute',
         sql: sql,
-        params: [id, name.value, phone.value, selectedDate.value, selectedTime.value, remark.value || '', createdAt]
+        params: [id, name.value, phone.value, selectedDate.value, selectedTime.value, remark.value || '', createdAt],
+        accountId: ACCOUNT_ID,
+        dbId: D1_DB_ID,
+        token: D1_TOKEN
       })
     })
     const data = await res.json()
@@ -289,14 +297,17 @@ const handleSearch = async () => {
     const sql = `SELECT * FROM bookings WHERE phone = '${searchPhone.value}' ORDER BY created_at DESC`
     const res = await fetch(API, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${D1_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ sql })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'query',
+        sql: sql,
+        accountId: ACCOUNT_ID,
+        dbId: D1_DB_ID,
+        token: D1_TOKEN
+      })
     })
     const data = await res.json()
-    const items = data.result?.[0]?.results || []
+    const items = data.results || []
     bookings.value = items.map(i => ({
       id: i.id,
       date: i.date,
@@ -319,11 +330,14 @@ const cancelBooking = async (id) => {
     const sql = `DELETE FROM bookings WHERE id = '${id}'`
     await fetch(API, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${D1_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ sql })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'execute',
+        sql: sql,
+        accountId: ACCOUNT_ID,
+        dbId: D1_DB_ID,
+        token: D1_TOKEN
+      })
     })
     showToast('已取消')
     handleSearch()
