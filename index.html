@@ -868,7 +868,10 @@
     }
 
     function getDateStr(date) {
-      return date.toISOString().split('T')[0];
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
 
     function formatDateCN(dateStr) {
@@ -920,8 +923,9 @@
       
       let slotsWithRemain;
       try {
-        // 查询当天所有预约记录
-        const result = await feishuQueryRecords(`CurrentValue.[预约日期]=DATE("${selectedDate}")`);
+        // 查询当天所有预约记录 (日期格式兼容)
+        // 飞书可能存为 "2026/03/25" 或时间戳，需要同时查询
+        const result = await feishuQueryRecords(`CurrentValue.[预约日期]="${selectedDate}" OR CurrentValue.[预约日期]="${selectedDate.replace(/-/g, '/')}"`);
         
         // 处理飞书返回的不同数据格式
         let allBookings = [];
@@ -1130,16 +1134,55 @@
       showLoading('正在提交预约...');
 
       // 检查是否重复预约同日时段（按手机号+日期+时段）
-      const result = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]=DATE("${selectedDate}"), CurrentValue.[预约时段]="${selectedTime}")`);
+      // 尝试两种日期格式
+      const dateForQuery = selectedDate.replace(/-/g, '/');
+      let existingBookings = [];
       
-      if (result.data && result.data.items && result.data.items.length > 0) {
+      const result1 = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]="${selectedDate}", CurrentValue.[预约时段]="${selectedTime}")`);
+      if (result1 && Array.isArray(result1)) {
+        existingBookings = result1;
+      } else if (result1.data?.items) {
+        existingBookings = result1.data.items;
+      }
+      
+      if (existingBookings.length === 0) {
+        const result2 = await feishuQueryRecords(`AND(CurrentValue.[电话]="${phone}", CurrentValue.[预约日期]="${dateForQuery}", CurrentValue.[预约时段]="${selectedTime}")`);
+        if (result2 && Array.isArray(result2)) {
+          existingBookings = result2;
+        } else if (result2.data?.items) {
+          existingBookings = result2.data.items;
+        }
+      }
+      
+      if (existingBookings.length > 0) {
         hideLoading();
         showToast('您已预约过此时段');
         return;
       }
 
       // 检查同一姓名同一时段是否已预约
-      const nameCheck = await feishuQueryRecords(`AND(CurrentValue.[姓名]="${name}", CurrentValue.[预约日期]=DATE("${selectedDate}"), CurrentValue.[预约时段]="${selectedTime}")`);
+      let nameBookings = [];
+      const nameCheck1 = await feishuQueryRecords(`AND(CurrentValue.[姓名]="${name}", CurrentValue.[预约日期]="${selectedDate}", CurrentValue.[预约时段]="${selectedTime}")`);
+      if (nameCheck1 && Array.isArray(nameCheck1)) {
+        nameBookings = nameCheck1;
+      } else if (nameCheck1.data?.items) {
+        nameBookings = nameCheck1.data.items;
+      }
+      
+      if (nameBookings.length === 0) {
+        const nameCheck2 = await feishuQueryRecords(`AND(CurrentValue.[姓名]="${name}", CurrentValue.[预约日期]="${dateForQuery}", CurrentValue.[预约时段]="${selectedTime}")`);
+        if (nameCheck2 && Array.isArray(nameCheck2)) {
+          nameBookings = nameCheck2;
+        } else if (nameCheck2.data?.items) {
+          nameBookings = nameCheck2.data.items;
+        }
+      }
+      
+      if (nameBookings.length > 0) {
+        hideLoading();
+        showToast('该时段已被预约');
+        return;
+      }
       
       if (nameCheck.data && nameCheck.data.items && nameCheck.data.items.length > 0) {
         hideLoading();
