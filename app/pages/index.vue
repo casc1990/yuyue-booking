@@ -141,7 +141,7 @@ const loading = ref(false)
 const loadingText = ref('')
 const toast = ref('')
 
-const API = '/api/feishu'
+const API = 'https://patient-bird-f20e.962549206.workers.dev/'
 const D1_TOKEN = 'cfat_cPahg4lZLwPAgkLOBDX8jmxgf1IORtRIQlIz9JMvbc5d1c0f'
 const D1_DB_ID = '2f1426cc-6491-4e4f-bc99-44ced6fff6e5'
 const ACCOUNT_ID = '266b118cf612f91c8b6dcbf81cc65e19'
@@ -193,19 +193,11 @@ const loadTimeSlots = async () => {
     const sql = `SELECT * FROM bookings WHERE date = '${selectedDate.value}'`
     const res = await fetch(API, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ 
-        action: 'query',
-        sql: sql,
-        accountId: ACCOUNT_ID,
-        dbId: D1_DB_ID,
-        token: D1_TOKEN
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: sql })
     })
     const data = await res.json()
-    const items = data.results || []
+    const items = data.result?.[0]?.results || []
     
     timeSlots.value = [
       { start: '09:30', end: '10:30', remain: 3, isFull: false },
@@ -251,12 +243,8 @@ const confirmSubmit = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'execute',
         sql: sql,
-        params: [id, name.value, phone.value, selectedDate.value, selectedTime.value, remark.value || '', createdAt],
-        accountId: ACCOUNT_ID,
-        dbId: D1_DB_ID,
-        token: D1_TOKEN
+        params: [id, name.value, phone.value, selectedDate.value, selectedTime.value, remark.value || '', createdAt]
       })
     })
     const data = await res.json()
@@ -298,16 +286,10 @@ const handleSearch = async () => {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'query',
-        sql: sql,
-        accountId: ACCOUNT_ID,
-        dbId: D1_DB_ID,
-        token: D1_TOKEN
-      })
+      body: JSON.stringify({ sql: sql })
     })
     const data = await res.json()
-    const items = data.results || []
+    const items = data.result?.[0]?.results || []
     bookings.value = items.map(i => ({
       id: i.id,
       date: i.date,
@@ -331,13 +313,7 @@ const cancelBooking = async (id) => {
     await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'execute',
-        sql: sql,
-        accountId: ACCOUNT_ID,
-        dbId: D1_DB_ID,
-        token: D1_TOKEN
-      })
+      body: JSON.stringify({ sql: sql })
     })
     showToast('已取消')
     handleSearch()
