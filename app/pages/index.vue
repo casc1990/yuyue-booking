@@ -58,7 +58,8 @@
             <input v-model="name" type="text" placeholder="请输入您的姓名" />
           </div>
           <div class="form-item">
-            <input v-model="phone" type="tel" placeholder="请输入手机号" maxlength="11" />
+            <input v-model="phone" type="tel" placeholder="请输入手机号" maxlength="11" @input="validatePhone" />
+          <p v-if="phoneError" class="form-error">{{ phoneError }}</p>
           </div>
           <div class="form-item">
             <textarea v-model="remark" placeholder="如有特殊需求请在此说明"></textarea>
@@ -164,6 +165,7 @@ const showConfirm = ref(false)
 const loading = ref(false)
 const loadingText = ref('')
 const toast = ref('')
+const phoneError = ref('')
 
 const API = '/api'
 const D1_TOKEN = 'cfat_cPahg4lZLwPAgkLOBDX8jmxgf1IORtRIQlIz9JMvbc5d1c0f'
@@ -256,9 +258,30 @@ const showToast = (msg) => {
   setTimeout(() => toast.value = '', 2000)
 }
 
+// 验证手机号
+const validatePhone = () => {
+  if (!phone.value) {
+    phoneError.value = ''
+    return false
+  }
+  if (!/^1[3-9]\d{9}$/.test(phone.value)) {
+    phoneError.value = '请输入正确的11位手机号'
+    return false
+  }
+  phoneError.value = ''
+  return true
+}
+
 const handleBook = () => {
-  if (!canBook.value) {
-    showToast('请填写完整信息')
+  if (!name.value) {
+    showToast('请输入姓名')
+    return
+  }
+  if (!validatePhone()) {
+    return
+  }
+  if (!selectedTime.value) {
+    showToast('请选择预约时段')
     return
   }
   showConfirm.value = true
@@ -270,6 +293,38 @@ const confirmSubmit = async () => {
   loadingText.value = '正在提交预约...'
   
   try {
+    // 检查是否已预约（同一手机号+同一时段）
+    const checkSql = `SELECT COUNT(*) as count FROM bookings WHERE phone = '${phone.value}' AND date = '${selectedDate.value}' AND time_slot = '${selectedTime.value}' AND status = 'confirmed'`
+    const checkRes = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: checkSql })
+    })
+    const checkData = await checkRes.json()
+    const existingCount = checkData.result?.results?.[0]?.count || 0
+    
+    if (existingCount > 0) {
+      showToast('该时段已预约，请选择其他时段')
+      loading.value = false
+      return
+    }
+    
+    // 检查剩余名额
+    const countSql = `SELECT COUNT(*) as count FROM bookings WHERE date = '${selectedDate.value}' AND time_slot = '${selectedTime.value}' AND status = 'confirmed'`
+    const countRes = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: countSql })
+    })
+    const countData = await countRes.json()
+    const bookedCount = countData.result?.results?.[0]?.count || 0
+    
+    if (bookedCount >= 3) {
+      showToast('该时段已约满，请选择其他时段')
+      loading.value = false
+      return
+    }
+    
     const id = Date.now().toString()
     const createdAt = Math.floor(Date.now() / 1000)
     const sql = `INSERT INTO bookings (id, name, phone, date, time_slot, remark, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)`
@@ -394,6 +449,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #
 .time-item.disabled { opacity: 0.5; }
 .form-item { margin-bottom: 12px; }
 .form-item input, .form-item textarea { width: 100%; padding: 12px; font-size: 15px; border: 1px solid #e8e8e8; border-radius: 8px; }
+.form-error { color: #f44336; font-size: 12px; margin-top: 4px; }
 .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; font-size: 16px; }
 .btn-primary:disabled { opacity: 0.5; }
 .search-section { display: flex; gap: 10px; }
