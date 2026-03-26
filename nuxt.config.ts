@@ -12,7 +12,7 @@ export default defineNuxtConfig({
   
   app: {
     head: {
-      title: '臧式养生馆',
+      title: '藏有引力·预约',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' }
       ]
