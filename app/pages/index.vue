@@ -303,6 +303,11 @@ const loadTimeSlots = async () => {
     })
     
     timeSlots.value = slots
+    
+    // 如果当天没有可预约时段，显示提示
+    if (isToday && slots.length === 0) {
+      showToast('当天已无可预约时段，可预约今日之后的其他时段')
+    }
   } catch (e) {
     console.error(e)
   }
