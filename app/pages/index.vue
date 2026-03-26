@@ -10,6 +10,7 @@
     <div class="nav-tabs">
       <div class="nav-tab" :class="{ active: activeTab === 'book' }" @click="activeTab = 'book'">预约</div>
       <div class="nav-tab" :class="{ active: activeTab === 'my' }" @click="activeTab = 'my'">我的预约</div>
+      <div class="nav-tab" :class="{ active: activeTab === 'about' }" @click="activeTab = 'about'">关于</div>
     </div>
 
     <div class="content">
@@ -111,6 +112,41 @@
               </div>
             </div>
             <button v-if="b.status !== 'cancelled'" class="btn-cancel" @click="cancelBooking(b.id)">取消预约</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 关于页 -->
+      <div v-if="activeTab === 'about'" class="page">
+        <div class="about-section">
+          <div class="about-logo">🌿</div>
+          <h2 class="about-title">臧式养生馆</h2>
+          
+          <div class="about-card">
+            <h3>🏪 营业时间</h3>
+            <div class="about-row">
+              <span class="label">周一至周五</span>
+              <span class="value">09:30 - 16:30</span>
+            </div>
+            <div class="about-row">
+              <span class="label">周六至周日</span>
+              <span class="value">09:30 - 20:30</span>
+            </div>
+          </div>
+          
+          <div class="about-card">
+            <h3>📍 地址</h3>
+            <p class="about-text">西咸新区上林街道阳光城西西里5号楼1单元1903工作室</p>
+          </div>
+          
+          <div class="about-card">
+            <h3>📞 联系电话</h3>
+            <p class="about-text">123456789（孙老师）</p>
+          </div>
+          
+          <div class="about-card">
+            <h3>💡 经营理念</h3>
+            <p class="about-text">传承中医养生文化，为您提供专业、贴心的健康服务。</p>
           </div>
         </div>
       </div>
@@ -483,4 +519,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #
 .loading-text { color: white; margin-top: 12px; }
 .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 8px; z-index: 300; }
 .tip { margin-top: 12px; font-size: 13px; color: #666; }
+
+/* 关于页面 */
+.about-section { padding: 20px 0; }
+.about-logo { font-size: 60px; text-align: center; margin-bottom: 10px; }
+.about-title { text-align: center; font-size: 22px; color: #333; margin-bottom: 20px; }
+.about-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.about-card h3 { font-size: 15px; color: #333; margin-bottom: 12px; }
+.about-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.about-row:last-child { border-bottom: none; }
+.about-row .label { color: #888; }
+.about-row .value { color: #333; font-weight: 500; }
+.about-text { font-size: 14px; color: #666; line-height: 1.6; }
 </style>
