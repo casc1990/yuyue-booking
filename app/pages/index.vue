@@ -52,6 +52,25 @@
           </div>
         </div>
 
+        <!-- 选择老师 -->
+        <div v-if="selectedTime" class="teacher-section">
+          <h3>👩‍🏫 选择老师</h3>
+          <div v-if="availableTeachers.length > 0" class="teacher-list">
+            <div 
+              v-for="teacher in availableTeachers" 
+              :key="teacher"
+              class="teacher-item"
+              :class="{ selected: selectedTeacher === teacher }"
+              @click="selectedTeacher = teacher"
+            >
+              {{ teacher }}
+            </div>
+          </div>
+          <div v-else class="no-teacher">
+            <p>该时段暂无老师可预约</p>
+          </div>
+        </div>
+
         <!-- 填写信息 -->
         <div class="form-section">
           <h3>📝 填写信息</h3>
@@ -100,6 +119,10 @@
                 <div class="card-row">
                   <span class="label">⏰ 时段</span>
                   <span class="value">{{ getTimeSlotDisplay(b.timeSlot) }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="label">👩‍🏫 老师</span>
+                  <span class="value">{{ b.teacher }}</span>
                 </div>
                 <div class="card-row">
                   <span class="label">📱 电话</span>
@@ -159,6 +182,7 @@
         <div class="confirm-info">
           <div class="row"><span class="label">日期</span><span class="value">{{ confirmDate }}</span></div>
           <div class="row"><span class="label">时段</span><span class="value">{{ selectedTime }}</span></div>
+          <div class="row"><span class="label">老师</span><span class="value">{{ selectedTeacher }}</span></div>
           <div class="row"><span class="label">姓名</span><span class="value">{{ name }}</span></div>
           <div class="row"><span class="label">电话</span><span class="value">{{ phone }}</span></div>
         </div>
@@ -192,6 +216,8 @@ const timeSlots = ref([
 ])
 const selectedDate = ref('')
 const selectedTime = ref('')
+const selectedTeacher = ref('')
+const availableTeachers = ref([])
 const name = ref('')
 const phone = ref('')
 const remark = ref('')
@@ -229,13 +255,36 @@ const initDates = () => {
 
 const selectDate = (date) => {
   selectedDate.value = date
-  selectedTime.value = ''
+  selectedTime.value = ''; selectedTeacher.value = ''
   loadTimeSlots()
 }
 
 const selectTime = (slot) => {
   if (slot.isFull) return
   selectedTime.value = slot.start
+  selectedTeacher.value = ''
+  loadAvailableTeachers()
+}
+
+const loadAvailableTeachers = async () => {
+  if (!selectedDate.value || !selectedTime.value) return
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'get_teachers',
+        date: selectedDate.value,
+        timeSlot: selectedTime.value
+      })
+    })
+    const data = await res.json()
+    if (data.success) {
+      availableTeachers.value = data.available || []
+    }
+  } catch (e) {
+    console.error('获取老师列表失败', e)
+  }
 }
 
 // 获取时段的显示文本（如 "10:30 - 11:30"）
@@ -248,7 +297,7 @@ const getTimeSlotDisplay = (timeSlot) => {
 }
 
 const canBook = computed(() => {
-  return name.value && phone.value && selectedTime.value && /^1[3-9]\d{9}$/.test(phone.value)
+  return name.value && phone.value && selectedTime.value && selectedTeacher.value && /^1[3-9]\d{9}$/.test(phone.value)
 })
 
 const confirmDate = computed(() => {
@@ -311,7 +360,7 @@ const loadTimeSlots = async () => {
       setTimeout(() => {
         if (dates.value.length > 1) {
           selectedDate.value = dates.value[1].date
-          selectedTime.value = ''
+          selectedTime.value = ''; selectedTeacher.value = ''
           loadTimeSlots()
         }
       }, 1500)
@@ -371,6 +420,7 @@ const confirmSubmit = async () => {
         phone: phone.value,
         date: selectedDate.value,
         timeSlot: selectedTime.value,
+        teacher: selectedTeacher.value,
         remark: remark.value || ''
       })
     })
@@ -389,7 +439,7 @@ const confirmSubmit = async () => {
     name.value = ''
     phone.value = ''
     remark.value = ''
-    selectedTime.value = ''
+    selectedTime.value = ''; selectedTeacher.value = ''
     
     await loadTimeSlots()
     showToast('预约成功！')
@@ -426,6 +476,7 @@ const handleSearch = async () => {
       name: i.name,
       date: i.date,
       timeSlot: i.time_slot,
+      teacher: i.teacher,
       phone: i.phone,
       remark: i.remark,
       status: i.status
@@ -481,8 +532,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #
 .nav-tab { flex: 1; padding: 14px 0; text-align: center; font-size: 15px; color: #666; border-bottom: 3px solid transparent; }
 .nav-tab.active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
 .content { padding: 0 16px; }
-.date-section, .time-section, .form-section, .search-section { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.date-section h3, .time-section h3, .form-section h3 { font-size: 14px; color: #999; margin-bottom: 12px; }
+.date-section, .time-section, .form-section, .search-section, .teacher-section { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.date-section h3, .time-section h3, .form-section h3, .teacher-section h3 { font-size: 14px; color: #999; margin-bottom: 12px; }
+.teacher-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.teacher-item { padding: 10px 20px; background: #f5f5f5; border-radius: 20px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.teacher-item:hover { background: #e8e8e8; }
+.teacher-item.selected { background: #667eea; color: white; }
+.no-teacher { text-align: center; color: #999; padding: 20px; }
 .date-list { display: flex; gap: 10px; overflow-x: auto; }
 .date-item { flex-shrink: 0; width: 60px; padding: 10px 4px; text-align: center; border-radius: 10px; background: #f5f6fa; }
 .date-item.selected { background: #667eea; color: white; }

@@ -5,6 +5,9 @@ const FEISHU_API = 'https://open.feishu.cn/open-apis';
 // 飞书机器人 Webhook
 const BOOKING_WEBHOOK = 'https://open.feishu.cn/open-apis/bot/v2/hook/8fe65cb8-8810-43a1-8f22-0ee2e2845e76';
 
+// 老师列表
+const TEACHERS = ['月亮老师', '娟娟老师', '丽丽老师', '凡凡老师'];
+
 // 获取飞书 tenant access token
 async function getFeishuToken() {
   const resp = await fetch(`${FEISHU_API}/auth/v3/tenant_access_token/internal`, {
@@ -61,24 +64,36 @@ async function sendFeishuNotification(booking, type) {
               is_short: true,
               text: {
                 tag: "lark_md",
-                content: "**📅 日期**\n" + booking.date
+                content: "**👩‍🏫 老师**\n" + booking.teacher
               }
             },
             {
               is_short: true,
               text: {
                 tag: "lark_md",
-                content: "**⏰ 时段**\n" + booking.timeSlot
+                content: "**📅 日期**\n" + booking.date
               }
             }
           ]
         },
         {
           tag: "div",
-          text: {
-            tag: "lark_md",
-            content: "**📝 备注**: " + (booking.remark || "无")
-          }
+          fields: [
+            {
+              is_short: true,
+              text: {
+                tag: "lark_md",
+                content: "**⏰ 时段**\n" + booking.timeSlot
+              }
+            },
+            {
+              is_short: true,
+              text: {
+                tag: "lark_md",
+                content: "**📝 备注**\n" + (booking.remark || "无")
+              }
+            }
+          ]
         }
       ]
     }
@@ -105,9 +120,9 @@ async function sendBookingList(env) {
   for (const b of bookings) {
     const status = b.status === 'cancelled' ? '❌ 已取消' : '✅ 已预约';
     const rowColor = b.status === 'cancelled' ? '🔴' : '🟢';
-    tableContent += `${rowColor} ${b.name} | ${b.phone} | ${b.date} ${b.time_slot} | ${status}\n`;
+    tableContent += `${rowColor} ${b.name} | ${b.teacher} | ${b.date} ${b.time_slot} | ${status}\n`;
     index++;
-    if (index > 15) break; // 限制显示前15条
+    if (index > 15) break;
   }
   
   const message = {
@@ -162,11 +177,45 @@ export async function onRequest(context) {
   try {
     const body = await request.json();
     
+    // 获取老师列表
+    if (body.type === 'get_teachers') {
+      const { date, timeSlot } = body;
+      
+      // 查询该时段已预约的老师
+      const sql = `SELECT teacher FROM bookings WHERE date = '${date}' AND time_slot = '${timeSlot}' AND status = 'confirmed'`;
+      const stmt = env.D1_BOOKINGS.prepare(sql);
+      const result = await stmt.all();
+      const bookedTeachers = result.results ? result.results.map(r => r.teacher) : [];
+      
+      // 找出可用的老师
+      const availableTeachers = TEACHERS.filter(t => !bookedTeachers.includes(t));
+      
+      return Response.json({ 
+        success: true, 
+        teachers: TEACHERS,
+        available: availableTeachers,
+        booked: bookedTeachers
+      }, { headers: corsHeaders });
+    }
+    
     // 预约创建接口
     if (body.type === 'create_booking') {
-      const { name, phone, date, timeSlot, remark } = body;
+      const { name, phone, date, timeSlot, teacher, remark } = body;
       
-      // 检查是否已预约
+      if (!teacher) {
+        return Response.json({ success: false, error: '请选择老师' }, { headers: corsHeaders });
+      }
+      
+      // 检查该老师此时段是否已被预约
+      const checkTeacherSql = `SELECT COUNT(*) as count FROM bookings WHERE teacher = '${teacher}' AND date = '${date}' AND time_slot = '${timeSlot}' AND status = 'confirmed'`;
+      const checkTeacherStmt = env.D1_BOOKINGS.prepare(checkTeacherSql);
+      const checkTeacherResult = await checkTeacherStmt.first();
+      
+      if (checkTeacherResult && checkTeacherResult.count > 0) {
+        return Response.json({ success: false, error: `该老师此时段已被预约，请选择其他老师或时段` }, { headers: corsHeaders });
+      }
+      
+      // 检查是否已预约（同一手机号+同一时段）
       const checkSql = `SELECT COUNT(*) as count FROM bookings WHERE phone = '${phone}' AND date = '${date}' AND time_slot = '${timeSlot}' AND status = 'confirmed'`;
       const checkStmt = env.D1_BOOKINGS.prepare(checkSql);
       const checkResult = await checkStmt.first();
@@ -187,12 +236,12 @@ export async function onRequest(context) {
       // 创建预约
       const id = Date.now().toString();
       const createdAt = Math.floor(Date.now() / 1000);
-      const insertSql = `INSERT INTO bookings (id, name, phone, date, time_slot, remark, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)`;
+      const insertSql = `INSERT INTO bookings (id, name, phone, date, time_slot, teacher, remark, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?)`;
       const insertStmt = env.D1_BOOKINGS.prepare(insertSql);
-      await insertStmt.bind(id, name, phone, date, timeSlot, remark || '', createdAt).run();
+      await insertStmt.bind(id, name, phone, date, timeSlot, teacher, remark || '', createdAt).run();
       
       // 发送飞书通知
-      await sendFeishuNotification({ name, phone, date, timeSlot, remark }, 'create');
+      await sendFeishuNotification({ name, phone, date, timeSlot, teacher, remark }, 'create');
       await sendBookingList(env);
       
       return Response.json({ success: true }, { headers: corsHeaders });
@@ -219,6 +268,7 @@ export async function onRequest(context) {
           phone: booking.phone, 
           date: booking.date, 
           timeSlot: booking.time_slot,
+          teacher: booking.teacher,
           remark: booking.remark 
         }, 'cancel');
       }
