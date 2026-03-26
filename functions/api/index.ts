@@ -20,16 +20,19 @@ async function getFeishuToken() {
 }
 
 // 发送飞书群通知
-async function sendFeishuNotification(booking) {
+async function sendFeishuNotification(booking, type) {
+  const title = type === 'create' ? '📢 新预约通知' : '❌ 预约取消';
+  const template = type === 'create' ? 'green' : 'red';
+  
   const message = {
     msg_type: "interactive",
     card: {
       header: {
         title: {
           tag: "plain_text",
-          content: "📢 新预约通知"
+          content: title
         },
-        template: "blue"
+        template: template
       },
       elements: [
         {
@@ -75,6 +78,61 @@ async function sendFeishuNotification(booking) {
           text: {
             tag: "lark_md",
             content: "**📝 备注**: " + (booking.remark || "无")
+          }
+        }
+      ]
+    }
+  };
+
+  await fetch(BOOKING_WEBHOOK, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(message)
+  });
+}
+
+// 获取所有预约并发送到飞书群
+async function sendBookingList(env) {
+  const sql = `SELECT * FROM bookings ORDER BY created_at DESC`;
+  const stmt = env.D1_BOOKINGS.prepare(sql);
+  const result = await stmt.all();
+  const bookings = result.results || [];
+  
+  // 构建表格内容
+  let tableContent = '';
+  let index = 1;
+  
+  for (const b of bookings) {
+    const status = b.status === 'cancelled' ? '❌ 已取消' : '✅ 已预约';
+    const rowColor = b.status === 'cancelled' ? '🔴' : '🟢';
+    tableContent += `${rowColor} ${b.name} | ${b.phone} | ${b.date} ${b.time_slot} | ${status}\n`;
+    index++;
+    if (index > 15) break; // 限制显示前15条
+  }
+  
+  const message = {
+    msg_type: "interactive",
+    card: {
+      header: {
+        title: {
+          tag: "plain_text",
+          content: "📋 当前预约列表"
+        },
+        template: "blue"
+      },
+      elements: [
+        {
+          tag: "div",
+          text: {
+            tag: "lark_md",
+            content: "🟢 已预约 | 🔴 已取消\n\n" + tableContent
+          }
+        },
+        {
+          tag: "div",
+          text: {
+            tag: "lark_md",
+            content: `📊 共 ${bookings.length} 条预约记录`
           }
         }
       ]
@@ -134,7 +192,37 @@ export async function onRequest(context) {
       await insertStmt.bind(id, name, phone, date, timeSlot, remark || '', createdAt).run();
       
       // 发送飞书通知
-      await sendFeishuNotification({ name, phone, date, timeSlot, remark });
+      await sendFeishuNotification({ name, phone, date, timeSlot, remark }, 'create');
+      await sendBookingList(env);
+      
+      return Response.json({ success: true }, { headers: corsHeaders });
+    }
+    
+    // 取消预约接口
+    if (body.type === 'cancel_booking') {
+      const { id } = body;
+      
+      // 获取预约信息
+      const getSql = `SELECT * FROM bookings WHERE id = '${id}'`;
+      const getStmt = env.D1_BOOKINGS.prepare(getSql);
+      const booking = await getStmt.first();
+      
+      // 更新状态
+      const updateSql = `UPDATE bookings SET status = 'cancelled' WHERE id = '${id}'`;
+      const updateStmt = env.D1_BOOKINGS.prepare(updateSql);
+      await updateStmt.run();
+      
+      // 发送飞书通知
+      if (booking) {
+        await sendFeishuNotification({ 
+          name: booking.name, 
+          phone: booking.phone, 
+          date: booking.date, 
+          timeSlot: booking.time_slot,
+          remark: booking.remark 
+        }, 'cancel');
+      }
+      await sendBookingList(env);
       
       return Response.json({ success: true }, { headers: corsHeaders });
     }

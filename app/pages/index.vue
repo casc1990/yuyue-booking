@@ -406,12 +406,19 @@ const cancelBooking = async (id) => {
   loadingText.value = '正在取消...'
   
   try {
-    const sql = `UPDATE bookings SET status = 'cancelled' WHERE id = '${id}'`
-    await fetch(API, {
+    const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql: sql })
+      body: JSON.stringify({ type: 'cancel_booking', id: id })
     })
+    const data = await res.json()
+    
+    if (!data.success) {
+      showToast('取消失败')
+      loading.value = false
+      return
+    }
+    
     showToast('已取消')
     handleSearch()
   } catch (e) {
