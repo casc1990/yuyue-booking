@@ -460,7 +460,7 @@ onMounted(() => {
 body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f6fa; padding-bottom: 80px; }
 .header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px 20px 60px; border-radius: 0 0 24px 24px; }
 .header-logo { height: 60px; display: block; margin: 0 auto 8px; }
-.header p { font-size: 13px; opacity: 0.9; }
+.header p { font-size: 15px; font-weight: 500; opacity: 0.95; text-align: center; letter-spacing: 2px; }
 .nav-tabs { display: flex; background: white; padding: 0 16px; margin: -40px 16px 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
 .nav-tab { flex: 1; padding: 14px 0; text-align: center; font-size: 15px; color: #666; border-bottom: 3px solid transparent; }
 .nav-tab.active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
