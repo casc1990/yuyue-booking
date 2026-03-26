@@ -348,7 +348,7 @@ const cancelBooking = async (id) => {
   loadingText.value = '正在取消...'
   
   try {
-    const sql = `DELETE FROM bookings WHERE id = '${id}'`
+    const sql = `UPDATE bookings SET status = 'cancelled' WHERE id = '${id}'`
     await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
