@@ -304,9 +304,17 @@ const loadTimeSlots = async () => {
     
     timeSlots.value = slots
     
-    // 如果当天没有可预约时段，显示提示
+    // 如果当天没有可预约时段，自动选择下一天
     if (isToday && slots.length === 0) {
-      showToast('当天已无可预约时段，可预约今日之后的其他时段')
+      showToast('当天已无可预约时段，正在跳转到下一天...')
+      // 延迟选择下一天
+      setTimeout(() => {
+        if (dates.value.length > 1) {
+          selectedDate.value = dates.value[1].date
+          selectedTime.value = ''
+          loadTimeSlots()
+        }
+      }, 1500)
     }
   } catch (e) {
     console.error(e)
@@ -374,6 +382,9 @@ const confirmSubmit = async () => {
       return
     }
     
+    // 保存手机号用于查询
+    const savedPhone = phone.value
+    
     // 清空表单
     name.value = ''
     phone.value = ''
@@ -383,9 +394,9 @@ const confirmSubmit = async () => {
     await loadTimeSlots()
     showToast('预约成功！')
     
-    // 跳转到我的预约
+    // 跳转到我的预约并自动查询
     activeTab.value = 'my'
-    searchKey.value = phone.value
+    searchKey.value = savedPhone
     handleSearch()
   } catch (e) {
     console.error(e)
