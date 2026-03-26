@@ -327,54 +327,23 @@ const confirmSubmit = async () => {
   loadingText.value = '正在提交预约...'
   
   try {
-    // 检查是否已预约（同一手机号+同一时段）
-    const checkSql = `SELECT COUNT(*) as count FROM bookings WHERE phone = '${phone.value}' AND date = '${selectedDate.value}' AND time_slot = '${selectedTime.value}' AND status = 'confirmed'`
-    const checkRes = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql: checkSql })
-    })
-    const checkData = await checkRes.json()
-    const existingCount = checkData.result?.results?.[0]?.count || 0
-    
-    if (existingCount > 0) {
-      showToast('该时段已预约，请选择其他时段')
-      loading.value = false
-      return
-    }
-    
-    // 检查剩余名额
-    const countSql = `SELECT COUNT(*) as count FROM bookings WHERE date = '${selectedDate.value}' AND time_slot = '${selectedTime.value}' AND status = 'confirmed'`
-    const countRes = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql: countSql })
-    })
-    const countData = await countRes.json()
-    const bookedCount = countData.result?.results?.[0]?.count || 0
-    
-    if (bookedCount >= 3) {
-      showToast('该时段已约满，请选择其他时段')
-      loading.value = false
-      return
-    }
-    
-    const id = Date.now().toString()
-    const createdAt = Math.floor(Date.now() / 1000)
-    const sql = `INSERT INTO bookings (id, name, phone, date, time_slot, remark, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)`
-    
+    // 使用后端统一预约接口
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sql: sql,
-        params: [id, name.value, phone.value, selectedDate.value, selectedTime.value, remark.value || '', createdAt]
+        type: 'create_booking',
+        name: name.value,
+        phone: phone.value,
+        date: selectedDate.value,
+        timeSlot: selectedTime.value,
+        remark: remark.value || ''
       })
     })
     const data = await res.json()
     
     if (!data.success) {
-      showToast('预约失败')
+      showToast(data.error || '预约失败')
       loading.value = false
       return
     }

@@ -2,6 +2,9 @@
 
 const FEISHU_API = 'https://open.feishu.cn/open-apis';
 
+// 飞书机器人 Webhook
+const BOOKING_WEBHOOK = 'https://open.feishu.cn/open-apis/bot/v2/hook/8fe65cb8-8810-43a1-8f22-0ee2e2845e76';
+
 // 获取飞书 tenant access token
 async function getFeishuToken() {
   const resp = await fetch(`${FEISHU_API}/auth/v3/tenant_access_token/internal`, {
@@ -14,6 +17,75 @@ async function getFeishuToken() {
   });
   const data = await resp.json();
   return data.tenant_access_token;
+}
+
+// 发送飞书群通知
+async function sendFeishuNotification(booking) {
+  const message = {
+    msg_type: "interactive",
+    card: {
+      header: {
+        title: {
+          tag: "plain_text",
+          content: "📢 新预约通知"
+        },
+        template: "blue"
+      },
+      elements: [
+        {
+          tag: "div",
+          fields: [
+            {
+              is_short: true,
+              text: {
+                tag: "lark_md",
+                content: "**👤 姓名**\n" + booking.name
+              }
+            },
+            {
+              is_short: true,
+              text: {
+                tag: "lark_md",
+                content: "**📱 电话**\n" + booking.phone
+              }
+            }
+          ]
+        },
+        {
+          tag: "div",
+          fields: [
+            {
+              is_short: true,
+              text: {
+                tag: "lark_md",
+                content: "**📅 日期**\n" + booking.date
+              }
+            },
+            {
+              is_short: true,
+              text: {
+                tag: "lark_md",
+                content: "**⏰ 时段**\n" + booking.timeSlot
+              }
+            }
+          ]
+        },
+        {
+          tag: "div",
+          text: {
+            tag: "lark_md",
+            content: "**📝 备注**: " + (booking.remark || "无")
+          }
+        }
+      ]
+    }
+  };
+
+  await fetch(BOOKING_WEBHOOK, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(message)
+  });
 }
 
 export async function onRequest(context) {
@@ -31,6 +103,41 @@ export async function onRequest(context) {
 
   try {
     const body = await request.json();
+    
+    // 预约创建接口
+    if (body.type === 'create_booking') {
+      const { name, phone, date, timeSlot, remark } = body;
+      
+      // 检查是否已预约
+      const checkSql = `SELECT COUNT(*) as count FROM bookings WHERE phone = '${phone}' AND date = '${date}' AND time_slot = '${timeSlot}' AND status = 'confirmed'`;
+      const checkStmt = env.D1_BOOKINGS.prepare(checkSql);
+      const checkResult = await checkStmt.first();
+      
+      if (checkResult && checkResult.count > 0) {
+        return Response.json({ success: false, error: '该时段已预约' }, { headers: corsHeaders });
+      }
+      
+      // 检查剩余名额
+      const countSql = `SELECT COUNT(*) as count FROM bookings WHERE date = '${date}' AND time_slot = '${timeSlot}' AND status = 'confirmed'`;
+      const countStmt = env.D1_BOOKINGS.prepare(countSql);
+      const countResult = await countStmt.first();
+      
+      if (countResult && countResult.count >= 3) {
+        return Response.json({ success: false, error: '该时段已约满' }, { headers: corsHeaders });
+      }
+      
+      // 创建预约
+      const id = Date.now().toString();
+      const createdAt = Math.floor(Date.now() / 1000);
+      const insertSql = `INSERT INTO bookings (id, name, phone, date, time_slot, remark, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)`;
+      const insertStmt = env.D1_BOOKINGS.prepare(insertSql);
+      await insertStmt.bind(id, name, phone, date, timeSlot, remark || '', createdAt).run();
+      
+      // 发送飞书通知
+      await sendFeishuNotification({ name, phone, date, timeSlot, remark });
+      
+      return Response.json({ success: true }, { headers: corsHeaders });
+    }
     
     // D1 数据库查询
     if (body.sql && env.D1_BOOKINGS) {
