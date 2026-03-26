@@ -141,7 +141,7 @@ const loading = ref(false)
 const loadingText = ref('')
 const toast = ref('')
 
-const API = 'https://feishu-proxy.962549206.workers.dev/'
+const API = '/api'
 const D1_TOKEN = 'cfat_cPahg4lZLwPAgkLOBDX8jmxgf1IORtRIQlIz9JMvbc5d1c0f'
 const D1_DB_ID = '2f1426cc-6491-4e4f-bc99-44ced6fff6e5'
 const ACCOUNT_ID = '266b118cf612f91c8b6dcbf81cc65e19'
