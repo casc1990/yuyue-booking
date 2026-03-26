@@ -1,53 +1,534 @@
 <template>
-  <div class="qr-page">
-    <img src="/logo.png" alt="藏有引力" class="qr-logo" />
-    <h1>藏有引力</h1>
-    <p class="desc">霍尔灸 · 足浴 · 养生 · 调理</p>
-    
-    <div class="qr-section">
-      <img src="/qrcode.png" alt="预约二维码" class="qr-img" />
-      <p class="qr-tip">长按二维码识别预约</p>
+  <div class="app">
+    <!-- 头部 -->
+    <div class="header">
+      <img src="/logo.png" alt="藏有引力" class="header-logo" />
+      <p>霍尔灸 · 足浴 · 养生 · 调理</p>
     </div>
-    
-    <div class="link-section">
-      <p class="link-tip">或复制链接到浏览器打开</p>
-      <div class="link-box">
-        <input type="text" :value="bookingUrl" readonly class="link-input" id="copyInput" />
-        <button @click="copyLink" class="copy-btn">{{ copied ? '已复制' : '复制' }}</button>
+
+    <!-- 导航 -->
+    <div class="nav-tabs">
+      <div class="nav-tab" :class="{ active: activeTab === 'book' }" @click="activeTab = 'book'">预约</div>
+      <div class="nav-tab" :class="{ active: activeTab === 'my' }" @click="activeTab = 'my'">我的预约</div>
+      <div class="nav-tab" :class="{ active: activeTab === 'about' }" @click="activeTab = 'about'">关于</div>
+    </div>
+
+    <div class="content">
+      <!-- 预约页 -->
+      <div v-if="activeTab === 'book'" class="page">
+        <!-- 日期选择 -->
+        <div class="date-section">
+          <h3>📅 选择日期</h3>
+          <div class="date-list">
+            <div 
+              v-for="(d, i) in dates" 
+              :key="i"
+              class="date-item"
+              :class="{ selected: selectedDate === d.date }"
+              @click="selectDate(d.date)"
+            >
+              <div class="week">{{ d.week }}</div>
+              <div class="day">{{ d.day }}</div>
+              <div class="month">{{ d.month }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 时段选择 -->
+        <div class="time-section">
+          <h3>⏰ 选择时段（剩余/总名额）</h3>
+          <div class="time-list">
+            <div 
+              v-for="slot in timeSlots" 
+              :key="slot.start"
+              class="time-item"
+              :class="{ selected: selectedTime === slot.start, disabled: slot.isFull }"
+              @click="selectTime(slot)"
+            >
+              <span class="time">{{ slot.start }} - {{ slot.end }}</span>
+              <span v-if="slot.isFull" class="full-tag">已约满</span>
+              <span v-else class="remain">剩{{ slot.remain }}位</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 填写信息 -->
+        <div class="form-section">
+          <h3>📝 填写信息</h3>
+          <div class="form-item">
+            <input v-model="name" type="text" placeholder="请输入您的姓名" />
+          </div>
+          <div class="form-item">
+            <input v-model="phone" type="tel" placeholder="请输入手机号" maxlength="11" @input="validatePhone" />
+            <p v-if="phoneError" class="form-error">{{ phoneError }}</p>
+          </div>
+          <div class="form-item">
+            <textarea v-model="remark" placeholder="如有特殊需求请在此说明"></textarea>
+          </div>
+          <button class="btn-primary" :disabled="!canBook" @click="handleBook">
+            确认预约
+          </button>
+          <p class="tip">💡 温馨提示：预约成功后可在我<span style="color:#667eea;font-weight:600">的预约</span>中查看或取消/改约</p>
+        </div>
+      </div>
+
+      <!-- 我的预约页 -->
+      <div v-if="activeTab === 'my'" class="page">
+        <div class="search-section">
+          <input v-model="searchKey" type="text" placeholder="输入手机号或姓名查询" />
+          <button class="btn-search" @click="handleSearch">查询</button>
+        </div>
+        <div id="myBookings">
+          <div v-if="bookings.length === 0" class="empty-state">
+            <p>暂无预约记录</p>
+          </div>
+          <div v-else v-for="b in bookings" :key="b.id" class="booking-card">
+            <div class="card-info">
+              <div class="card-header">
+                <span class="card-date">{{ b.date }}</span>
+                <span class="card-status" :class="b.status">{{ b.status === 'cancelled' ? '已取消' : '已预约' }}</span>
+              </div>
+              <div class="card-detail">
+                <div class="card-row">
+                  <span class="label">👤 姓名</span>
+                  <span class="value">{{ b.name }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="label">📅 日期</span>
+                  <span class="value">{{ b.date }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="label">⏰ 时段</span>
+                  <span class="value">{{ getTimeSlotDisplay(b.timeSlot) }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="label">📱 电话</span>
+                  <span class="value">{{ b.phone }}</span>
+                </div>
+                <div class="card-row" v-if="b.remark">
+                  <span class="label">📝 备注</span>
+                  <span class="value">{{ b.remark }}</span>
+                </div>
+              </div>
+            </div>
+            <button v-if="b.status !== 'cancelled'" class="btn-cancel" @click="cancelBooking(b.id)">取消预约</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 关于页 -->
+      <div v-if="activeTab === 'about'" class="page">
+        <div class="about-section">
+          <img src="/logo.png" alt="藏有引力" class="about-logo" />
+          <h2 class="about-title">臧式养生馆</h2>
+          
+          <div class="about-card">
+            <h3>🏪 营业时间</h3>
+            <div class="about-row">
+              <span class="label">周一至周五</span>
+              <span class="value">09:30 - 16:30</span>
+            </div>
+            <div class="about-row">
+              <span class="label">周六至周日</span>
+              <span class="value">09:30 - 20:30</span>
+            </div>
+          </div>
+          
+          <div class="about-card">
+            <h3>📍 地址</h3>
+            <p class="about-text">西咸新区上林街道阳光城西西里5号楼1单元1903工作室</p>
+          </div>
+          
+          <div class="about-card">
+            <h3>📞 联系电话</h3>
+            <p class="about-text">123456789（孙老师）</p>
+          </div>
+          
+          <div class="about-card">
+            <h3>💡 经营理念</h3>
+            <p class="about-text">传承中医养生文化，为您提供专业、贴心的健康服务。</p>
+          </div>
+        </div>
       </div>
     </div>
-    
-    <a href="/booking" class="direct-link">直接进入预约 →</a>
+
+    <!-- 确认弹窗 -->
+    <div v-if="showConfirm" class="modal-overlay" @click="showConfirm = false">
+      <div class="confirm-modal" @click.stop>
+        <h3>📋 确认预约信息</h3>
+        <div class="confirm-info">
+          <div class="row"><span class="label">日期</span><span class="value">{{ confirmDate }}</span></div>
+          <div class="row"><span class="label">时段</span><span class="value">{{ selectedTime }}</span></div>
+          <div class="row"><span class="label">姓名</span><span class="value">{{ name }}</span></div>
+          <div class="row"><span class="label">电话</span><span class="value">{{ phone }}</span></div>
+        </div>
+        <div class="confirm-actions">
+          <button class="btn-cancel-modal" @click="showConfirm = false">取消</button>
+          <button class="btn-primary" @click="confirmSubmit">确认提交</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">{{ loadingText }}</div>
+    </div>
+
+    <!-- Toast -->
+    <div v-if="toast" class="toast">{{ toast }}</div>
   </div>
 </template>
 
 <script setup>
-const bookingUrl = 'https://yuyue-booking.pages.dev'
-const copied = ref(false)
+const activeTab = ref('book')
+const dates = ref([])
+const timeSlots = ref([
+  { start: '09:30', end: '10:30', remain: 3, isFull: false },
+  { start: '10:30', end: '11:30', remain: 3, isFull: false },
+  { start: '11:30', end: '12:30', remain: 3, isFull: false },
+  { start: '14:30', end: '15:30', remain: 3, isFull: false },
+  { start: '15:30', end: '16:30', remain: 3, isFull: false }
+])
+const selectedDate = ref('')
+const selectedTime = ref('')
+const name = ref('')
+const phone = ref('')
+const remark = ref('')
+const searchKey = ref('')
+const bookings = ref([])
+const showConfirm = ref(false)
+const loading = ref(false)
+const loadingText = ref('')
+const toast = ref('')
+const phoneError = ref('')
 
-const copyLink = () => {
-  const input = document.getElementById('copyInput')
-  input.select()
-  document.execCommand('copy')
-  copied.value = true
-  setTimeout(() => copied.value = false, 2000)
+const API = '/api'
+const D1_TOKEN = 'cfat_cPahg4lZLwPAgkLOBDX8jmxgf1IORtRIQlIz9JMvbc5d1c0f'
+const D1_DB_ID = '2f1426cc-6491-4e4f-bc99-44ced6fff6e5'
+const ACCOUNT_ID = '266b118cf612f91c8b6dcbf81cc65e19'
+
+// 初始化日期
+const initDates = () => {
+  const arr = []
+  const today = new Date()
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i)
+    arr.push({
+      date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+      week: weekdays[d.getDay()],
+      day: d.getDate(),
+      month: (d.getMonth()+1) + '月'
+    })
+  }
+  dates.value = arr
+  selectedDate.value = arr[0].date
 }
+
+const selectDate = (date) => {
+  selectedDate.value = date
+  selectedTime.value = ''
+  loadTimeSlots()
+}
+
+const selectTime = (slot) => {
+  if (slot.isFull) return
+  selectedTime.value = slot.start
+}
+
+// 获取时段的显示文本（如 "10:30 - 11:30"）
+const getTimeSlotDisplay = (timeSlot) => {
+  const slot = timeSlots.value.find(s => s.start === timeSlot)
+  if (slot) {
+    return `${slot.start} - ${slot.end}`
+  }
+  return timeSlot
+}
+
+const canBook = computed(() => {
+  return name.value && phone.value && selectedTime.value && /^1[3-9]\d{9}$/.test(phone.value)
+})
+
+const confirmDate = computed(() => {
+  if (!selectedDate.value) return ''
+  const d = new Date(selectedDate.value)
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  return `${d.getMonth()+1}月${d.getDate()}日 ${weekdays[d.getDay()]}`
+})
+
+// 加载时段
+const loadTimeSlots = async () => {
+  const now = new Date()
+  const currentHour = now.getHours()
+  const currentMinute = now.getMinutes()
+  const currentTime = currentHour * 60 + currentMinute
+  
+  // 获取今天的日期
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  const isToday = selectedDate.value === today
+  
+  try {
+    const sql = `SELECT * FROM bookings WHERE date = '${selectedDate.value}'`
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: sql })
+    })
+    const data = await res.json()
+    const items = data.result.results || []
+    
+    let slots = [
+      { start: '09:30', end: '10:30', remain: 3, isFull: false },
+      { start: '10:30', end: '11:30', remain: 3, isFull: false },
+      { start: '11:30', end: '12:30', remain: 3, isFull: false },
+      { start: '14:30', end: '15:30', remain: 3, isFull: false },
+      { start: '15:30', end: '16:30', remain: 3, isFull: false }
+    ]
+    
+    // 过滤掉已过期的时段
+    if (isToday) {
+      slots = slots.filter(slot => {
+        const [hour, minute] = slot.start.split(':').map(Number)
+        const slotTime = hour * 60 + minute
+        return slotTime > currentTime
+      })
+    }
+    
+    slots.forEach(slot => {
+      const count = items.filter(i => i.time_slot === slot.start).length
+      slot.remain = 3 - count
+      slot.isFull = count >= 3
+    })
+    
+    timeSlots.value = slots
+    
+    // 如果当天没有可预约时段，显示提示
+    if (isToday && slots.length === 0) {
+      showToast('当天已无可预约时段，可预约今日之后的其他时段')
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const showToast = (msg) => {
+  toast.value = msg
+  setTimeout(() => toast.value = '', 2000)
+}
+
+// 验证手机号
+const validatePhone = () => {
+  if (!phone.value) {
+    phoneError.value = ''
+    return false
+  }
+  if (!/^1[3-9]\d{9}$/.test(phone.value)) {
+    phoneError.value = '请输入正确的11位手机号'
+    return false
+  }
+  phoneError.value = ''
+  return true
+}
+
+const handleBook = () => {
+  if (!name.value) {
+    showToast('请输入姓名')
+    return
+  }
+  if (!validatePhone()) {
+    return
+  }
+  if (!selectedTime.value) {
+    showToast('请选择预约时段')
+    return
+  }
+  showConfirm.value = true
+}
+
+const confirmSubmit = async () => {
+  showConfirm.value = false
+  loading.value = true
+  loadingText.value = '正在提交预约...'
+  
+  try {
+    // 使用后端统一预约接口
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'create_booking',
+        name: name.value,
+        phone: phone.value,
+        date: selectedDate.value,
+        timeSlot: selectedTime.value,
+        remark: remark.value || ''
+      })
+    })
+    const data = await res.json()
+    
+    if (!data.success) {
+      showToast(data.error || '预约失败')
+      loading.value = false
+      return
+    }
+    
+    // 清空表单
+    name.value = ''
+    phone.value = ''
+    remark.value = ''
+    selectedTime.value = ''
+    
+    await loadTimeSlots()
+    showToast('预约成功！')
+    
+    // 跳转到我的预约
+    activeTab.value = 'my'
+    searchKey.value = phone.value
+    handleSearch()
+  } catch (e) {
+    console.error(e)
+    showToast('预约失败')
+  }
+  
+  loading.value = false
+}
+
+const handleSearch = async () => {
+  if (!searchKey.value) return
+  loading.value = true
+  loadingText.value = '正在查询...'
+  
+  try {
+    const key = searchKey.value.trim()
+    const sql = `SELECT * FROM bookings WHERE phone = '${key}' OR name LIKE '%${key}%' ORDER BY created_at DESC`
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: sql })
+    })
+    const data = await res.json()
+    const items = data.result.results || []
+    bookings.value = items.map(i => ({
+      id: i.id,
+      name: i.name,
+      date: i.date,
+      timeSlot: i.time_slot,
+      phone: i.phone,
+      remark: i.remark,
+      status: i.status
+    }))
+  } catch (e) {
+    showToast('查询失败')
+  }
+  
+  loading.value = false
+}
+
+const cancelBooking = async (id) => {
+  if (!confirm('确定取消？')) return
+  loading.value = true
+  loadingText.value = '正在取消...'
+  
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'cancel_booking', id: id })
+    })
+    const data = await res.json()
+    
+    if (!data.success) {
+      showToast('取消失败')
+      loading.value = false
+      return
+    }
+    
+    showToast('已取消')
+    handleSearch()
+  } catch (e) {
+    showToast('取消失败')
+  }
+  
+  loading.value = false
+}
+
+onMounted(() => {
+  initDates()
+  loadTimeSlots()
+})
 </script>
 
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-.qr-page { padding: 40px 20px; text-align: center; color: white; }
-.qr-logo { width: 120px; margin-bottom: 16px; }
-h1 { font-size: 28px; margin-bottom: 8px; }
-.desc { font-size: 14px; opacity: 0.9; margin-bottom: 30px; letter-spacing: 2px; }
-.qr-section { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-.qr-img { width: 200px; height: 200px; }
-.qr-tip { color: #666; font-size: 14px; margin-top: 12px; }
-.link-section { background: rgba(255,255,255,0.2); border-radius: 12px; padding: 20px; }
-.link-tip { font-size: 14px; margin-bottom: 12px; }
-.link-box { display: flex; gap: 10px; }
-.link-input { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; }
-.copy-btn { padding: 12px 24px; background: #fff; color: #667eea; border: none; border-radius: 8px; font-weight: 600; }
-.direct-link { display: block; margin-top: 24px; color: white; font-size: 16px; text-decoration: underline; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f6fa; padding-bottom: 80px; }
+.header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px 20px 60px; border-radius: 0 0 24px 24px; }
+.header-logo { height: 60px; display: block; margin: 0 auto 8px; }
+.header p { font-size: 15px; font-weight: 500; opacity: 0.95; text-align: center; letter-spacing: 2px; }
+.nav-tabs { display: flex; background: white; padding: 0 16px; margin: -40px 16px 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.nav-tab { flex: 1; padding: 14px 0; text-align: center; font-size: 15px; color: #666; border-bottom: 3px solid transparent; }
+.nav-tab.active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
+.content { padding: 0 16px; }
+.date-section, .time-section, .form-section, .search-section { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.date-section h3, .time-section h3, .form-section h3 { font-size: 14px; color: #999; margin-bottom: 12px; }
+.date-list { display: flex; gap: 10px; overflow-x: auto; }
+.date-item { flex-shrink: 0; width: 60px; padding: 10px 4px; text-align: center; border-radius: 10px; background: #f5f6fa; }
+.date-item.selected { background: #667eea; color: white; }
+.date-item .week { font-size: 11px; color: #999; }
+.date-item.selected .week { color: rgba(255,255,255,0.8); }
+.date-item .day { font-size: 18px; font-weight: 600; }
+.date-item .month { font-size: 10px; color: #999; }
+.time-list { display: flex; flex-direction: column; gap: 10px; }
+.time-item { display: flex; justify-content: space-between; padding: 14px 16px; background: #f5f6fa; border-radius: 10px; }
+.time-item.selected { background: #667eea; color: white; }
+.time-item.disabled { opacity: 0.5; }
+.form-item { margin-bottom: 12px; }
+.form-item input, .form-item textarea { width: 100%; padding: 12px; font-size: 15px; border: 1px solid #e8e8e8; border-radius: 8px; }
+.form-error { color: #f44336; font-size: 12px; margin-top: 4px; }
+.btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; font-size: 16px; }
+.btn-primary:disabled { opacity: 0.5; }
+.search-section { display: flex; gap: 10px; }
+.search-section input { flex: 1; padding: 12px; border: 1px solid #e8e8e8; border-radius: 8px; }
+.btn-search { padding: 12px 20px; background: #667eea; color: white; border: none; border-radius: 8px; }
+.booking-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.booking-card .card-info { flex: 1; }
+.booking-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.booking-card .card-date { font-size: 16px; font-weight: 600; color: #333; }
+.booking-card .card-status { font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+.booking-card .card-status.confirmed { background: #e8f5e9; color: #4caf50; }
+.booking-card .card-status.cancelled { background: #ffebee; color: #f44336; }
+.booking-card .card-detail { background: #f8f9fa; border-radius: 8px; padding: 12px; }
+.booking-card .card-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+.booking-card .card-row .label { color: #888; }
+.booking-card .card-row .value { color: #333; font-weight: 500; }
+.booking-card .btn-cancel { margin-top: 12px; width: 100%; }
+.btn-cancel { padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 6px; }
+.empty-state { text-align: center; padding: 40px; color: #999; }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.confirm-modal { background: white; border-radius: 16px; padding: 24px; width: 90%; max-width: 320px; }
+.confirm-modal h3 { text-align: center; margin-bottom: 16px; }
+.confirm-info { background: #f5f6fa; border-radius: 10px; padding: 14px; }
+.row { display: flex; justify-content: space-between; padding: 8px 0; }
+.row .label { color: #999; }
+.confirm-actions { display: flex; gap: 12px; margin-top: 16px; }
+.btn-cancel-modal { flex: 1; padding: 12px; background: #f5f6fa; border: none; border-radius: 8px; }
+.loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; }
+.loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: white; margin-top: 12px; }
+.toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 8px; z-index: 300; }
+.tip { margin-top: 12px; font-size: 13px; color: #666; }
+
+/* 关于页面 */
+.about-section { padding: 20px 0; }
+.about-logo { width: 120px; display: block; margin: 0 auto 10px; }
+.about-title { text-align: center; font-size: 22px; color: #333; margin-bottom: 20px; }
+.about-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.about-card h3 { font-size: 15px; color: #333; margin-bottom: 12px; }
+.about-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.about-row:last-child { border-bottom: none; }
+.about-row .label { color: #888; }
+.about-row .value { color: #333; font-weight: 500; }
+.about-text { font-size: 14px; color: #666; line-height: 1.6; }
 </style>
