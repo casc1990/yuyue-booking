@@ -2,7 +2,7 @@
   <div class="app">
     <!-- 头部 -->
     <div class="header">
-      <h1>🌿 臧式养生馆</h1>
+      <img src="/logo.png" alt="藏有引力" class="header-logo" />
       <p>霍尔灸 · 足浴 · 养生 · 调理</p>
     </div>
 
@@ -119,7 +119,7 @@
       <!-- 关于页 -->
       <div v-if="activeTab === 'about'" class="page">
         <div class="about-section">
-          <div class="about-logo">🌿</div>
+          <img src="/logo.png" alt="藏有引力" class="about-logo" />
           <h2 class="about-title">臧式养生馆</h2>
           
           <div class="about-card">
@@ -430,8 +430,8 @@ onMounted(() => {
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f6fa; padding-bottom: 80px; }
-.header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 24px 20px 60px; border-radius: 0 0 24px 24px; }
-.header h1 { font-size: 22px; margin-bottom: 4px; }
+.header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px 20px 60px; border-radius: 0 0 24px 24px; }
+.header-logo { height: 60px; display: block; margin: 0 auto 8px; }
 .header p { font-size: 13px; opacity: 0.9; }
 .nav-tabs { display: flex; background: white; padding: 0 16px; margin: -40px 16px 16px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
 .nav-tab { flex: 1; padding: 14px 0; text-align: center; font-size: 15px; color: #666; border-bottom: 3px solid transparent; }
@@ -489,7 +489,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #
 
 /* 关于页面 */
 .about-section { padding: 20px 0; }
-.about-logo { font-size: 60px; text-align: center; margin-bottom: 10px; }
+.about-logo { width: 120px; display: block; margin: 0 auto 10px; }
 .about-title { text-align: center; font-size: 22px; color: #333; margin-bottom: 20px; }
 .about-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .about-card h3 { font-size: 15px; color: #333; margin-bottom: 12px; }
