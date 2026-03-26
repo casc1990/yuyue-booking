@@ -60,7 +60,7 @@
           </div>
           <div class="form-item">
             <input v-model="phone" type="tel" placeholder="请输入手机号" maxlength="11" @input="validatePhone" />
-          <p v-if="phoneError" class="form-error">{{ phoneError }}</p>
+            <p v-if="phoneError" class="form-error">{{ phoneError }}</p>
           </div>
           <div class="form-item">
             <textarea v-model="remark" placeholder="如有特殊需求请在此说明"></textarea>
@@ -237,8 +237,6 @@ const selectTime = (slot) => {
   if (slot.isFull) return
   selectedTime.value = slot.start
 }
-
-const canBook = computed(() => {
 
 // 获取时段的显示文本（如 "10:30 - 11:30"）
 const getTimeSlotDisplay = (timeSlot) => {
