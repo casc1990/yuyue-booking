@@ -88,12 +88,16 @@
               </div>
               <div class="card-detail">
                 <div class="card-row">
+                  <span class="label">👤 姓名</span>
+                  <span class="value">{{ b.name }}</span>
+                </div>
+                <div class="card-row">
                   <span class="label">📅 日期</span>
                   <span class="value">{{ b.date }}</span>
                 </div>
                 <div class="card-row">
                   <span class="label">⏰ 时段</span>
-                  <span class="value">{{ b.timeSlot }}</span>
+                  <span class="value">{{ getTimeSlotDisplay(b.timeSlot) }}</span>
                 </div>
                 <div class="card-row">
                   <span class="label">📱 电话</span>
@@ -194,6 +198,17 @@ const selectDate = (date) => {
 const selectTime = (slot) => {
   if (slot.isFull) return
   selectedTime.value = slot.start
+}
+
+const canBook = computed(() => {
+
+// 获取时段的显示文本（如 "10:30 - 11:30"）
+const getTimeSlotDisplay = (timeSlot) => {
+  const slot = timeSlots.value.find(s => s.start === timeSlot)
+  if (slot) {
+    return `${slot.start} - ${slot.end}`
+  }
+  return timeSlot
 }
 
 const canBook = computed(() => {
@@ -313,6 +328,7 @@ const handleSearch = async () => {
     const items = data.result.results || []
     bookings.value = items.map(i => ({
       id: i.id,
+      name: i.name,
       date: i.date,
       timeSlot: i.time_slot,
       phone: i.phone,
