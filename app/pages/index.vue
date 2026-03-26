@@ -82,8 +82,28 @@
           </div>
           <div v-else v-for="b in bookings" :key="b.id" class="booking-card">
             <div class="card-info">
-              <div>{{ b.date }} {{ b.timeSlot }}</div>
-              <div class="status">{{ b.status === 'cancelled' ? '已取消' : '已预约' }}</div>
+              <div class="card-header">
+                <span class="card-date">{{ b.date }}</span>
+                <span class="card-status" :class="b.status">{{ b.status === 'cancelled' ? '已取消' : '已预约' }}</span>
+              </div>
+              <div class="card-detail">
+                <div class="card-row">
+                  <span class="label">📅 日期</span>
+                  <span class="value">{{ b.date }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="label">⏰ 时段</span>
+                  <span class="value">{{ b.timeSlot }}</span>
+                </div>
+                <div class="card-row">
+                  <span class="label">📱 电话</span>
+                  <span class="value">{{ b.phone }}</span>
+                </div>
+                <div class="card-row" v-if="b.remark">
+                  <span class="label">📝 备注</span>
+                  <span class="value">{{ b.remark }}</span>
+                </div>
+              </div>
             </div>
             <button v-if="b.status !== 'cancelled'" class="btn-cancel" @click="cancelBooking(b.id)">取消预约</button>
           </div>
@@ -294,6 +314,8 @@ const handleSearch = async () => {
       id: i.id,
       date: i.date,
       timeSlot: i.time_slot,
+      phone: i.phone,
+      remark: i.remark,
       status: i.status
     }))
   } catch (e) {
@@ -360,7 +382,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #
 .search-section { display: flex; gap: 10px; }
 .search-section input { flex: 1; padding: 12px; border: 1px solid #e8e8e8; border-radius: 8px; }
 .btn-search { padding: 12px 20px; background: #667eea; color: white; border: none; border-radius: 8px; }
-.booking-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.booking-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.booking-card .card-info { flex: 1; }
+.booking-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.booking-card .card-date { font-size: 16px; font-weight: 600; color: #333; }
+.booking-card .card-status { font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+.booking-card .card-status.confirmed { background: #e8f5e9; color: #4caf50; }
+.booking-card .card-status.cancelled { background: #ffebee; color: #f44336; }
+.booking-card .card-detail { background: #f8f9fa; border-radius: 8px; padding: 12px; }
+.booking-card .card-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+.booking-card .card-row .label { color: #888; }
+.booking-card .card-row .value { color: #333; font-weight: 500; }
+.booking-card .btn-cancel { margin-top: 12px; width: 100%; }
 .btn-cancel { padding: 8px 16px; background: #ff4d4f; color: white; border: none; border-radius: 6px; }
 .empty-state { text-align: center; padding: 40px; color: #999; }
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
