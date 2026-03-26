@@ -260,6 +260,15 @@ const confirmDate = computed(() => {
 
 // 加载时段
 const loadTimeSlots = async () => {
+  const now = new Date()
+  const currentHour = now.getHours()
+  const currentMinute = now.getMinutes()
+  const currentTime = currentHour * 60 + currentMinute
+  
+  // 获取今天的日期
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  const isToday = selectedDate.value === today
+  
   try {
     const sql = `SELECT * FROM bookings WHERE date = '${selectedDate.value}'`
     const res = await fetch(API, {
@@ -270,18 +279,30 @@ const loadTimeSlots = async () => {
     const data = await res.json()
     const items = data.result.results || []
     
-    timeSlots.value = [
+    let slots = [
       { start: '09:30', end: '10:30', remain: 3, isFull: false },
       { start: '10:30', end: '11:30', remain: 3, isFull: false },
       { start: '11:30', end: '12:30', remain: 3, isFull: false },
       { start: '14:30', end: '15:30', remain: 3, isFull: false },
       { start: '15:30', end: '16:30', remain: 3, isFull: false }
     ]
-    timeSlots.value.forEach(slot => {
+    
+    // 过滤掉已过期的时段
+    if (isToday) {
+      slots = slots.filter(slot => {
+        const [hour, minute] = slot.start.split(':').map(Number)
+        const slotTime = hour * 60 + minute
+        return slotTime > currentTime
+      })
+    }
+    
+    slots.forEach(slot => {
       const count = items.filter(i => i.time_slot === slot.start).length
       slot.remain = 3 - count
       slot.isFull = count >= 3
     })
+    
+    timeSlots.value = slots
   } catch (e) {
     console.error(e)
   }
