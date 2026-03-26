@@ -197,7 +197,7 @@ const loadTimeSlots = async () => {
       body: JSON.stringify({ sql: sql })
     })
     const data = await res.json()
-    const items = data.result?.[0]?.results || []
+    const items = data.result.results || []
     
     timeSlots.value = [
       { start: '09:30', end: '10:30', remain: 3, isFull: false },
@@ -289,7 +289,7 @@ const handleSearch = async () => {
       body: JSON.stringify({ sql: sql })
     })
     const data = await res.json()
-    const items = data.result?.[0]?.results || []
+    const items = data.result.results || []
     bookings.value = items.map(i => ({
       id: i.id,
       date: i.date,
