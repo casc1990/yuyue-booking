@@ -33,9 +33,9 @@ export async function onRequest(context) {
     const body = await request.json();
     
     // D1 数据库查询
-    if (body.sql && env.DB) {
+    if (body.sql && env.D1_BOOKINGS) {
       const { sql, params } = body;
-      let stmt = env.DB.prepare(sql);
+      let stmt = env.D1_BOOKINGS.prepare(sql);
       if (params && params.length > 0) {
         stmt = stmt.bind(...params);
       }
@@ -84,8 +84,8 @@ export async function onRequest(context) {
     }
     
     // 测试 D1 连接
-    if (env.DB) {
-      const result = await env.DB.prepare("SELECT 1 AS ok").first();
+    if (env.D1_BOOKINGS) {
+      const result = await env.D1_BOOKINGS.prepare("SELECT 1 AS ok").first();
       return Response.json({ ok: true, message: "D1 连接成功", data: result }, { headers: corsHeaders });
     }
     
