@@ -73,7 +73,7 @@
       <!-- 我的预约页 -->
       <div v-if="activeTab === 'my'" class="page">
         <div class="search-section">
-          <input v-model="searchPhone" type="tel" placeholder="输入手机号查询预约" />
+          <input v-model="searchKey" type="text" placeholder="输入手机号或姓名查询" />
           <button class="btn-search" @click="handleSearch">查询</button>
         </div>
         <div id="myBookings">
@@ -154,7 +154,7 @@ const selectedTime = ref('')
 const name = ref('')
 const phone = ref('')
 const remark = ref('')
-const searchPhone = ref('')
+const searchKey = ref('')
 const bookings = ref([])
 const showConfirm = ref(false)
 const loading = ref(false)
@@ -286,7 +286,7 @@ const confirmSubmit = async () => {
     
     // 跳转到我的预约
     activeTab.value = 'my'
-    searchPhone.value = phone.value
+    searchKey.value = phone.value
     handleSearch()
   } catch (e) {
     console.error(e)
@@ -297,12 +297,13 @@ const confirmSubmit = async () => {
 }
 
 const handleSearch = async () => {
-  if (!searchPhone.value) return
+  if (!searchKey.value) return
   loading.value = true
   loadingText.value = '正在查询...'
   
   try {
-    const sql = `SELECT * FROM bookings WHERE phone = '${searchPhone.value}' ORDER BY created_at DESC`
+    const key = searchKey.value.trim()
+    const sql = `SELECT * FROM bookings WHERE phone = '${key}' OR name LIKE '%${key}%' ORDER BY created_at DESC`
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
